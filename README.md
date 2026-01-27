@@ -49,7 +49,15 @@ pip install google-genai pillow
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key
+DATABASE_URL=postgresql://user:password@host:port/database
 ```
+
+| 변수 | 필수 | 설명 |
+|------|------|------|
+| `GEMINI_API_KEY` | O | Google Gemini API 키 |
+| `DATABASE_URL` | - | PostgreSQL 연결 문자열 (DB 사용 시) |
+
+> **참고**: 북마크는 기본적으로 브라우저 localStorage에 저장됩니다. PostgreSQL을 사용하려면 `src/lib/bookmarks.ts`를 `src/lib/db.ts`로 교체하세요.
 
 ### 실행
 
