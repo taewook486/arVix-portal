@@ -6,6 +6,7 @@ import "katex/dist/katex.min.css";
 import "highlight.js/styles/github-dark.css";
 import Navigation from "@/components/Navigation";
 import PaperBucket from "@/components/PaperBucket";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 
 const GA_TRACKING_ID = "G-6XV29BG0KR";
 
@@ -48,6 +49,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 min-h-screen`}
       >
+        <GoogleAnalytics />
         <Navigation />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {children}
