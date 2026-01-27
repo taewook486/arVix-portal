@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
@@ -10,6 +10,11 @@ interface SearchBarProps {
 
 export default function SearchBar({ onSearch, isLoading = false, initialQuery = '' }: SearchBarProps) {
   const [query, setQuery] = useState(initialQuery);
+
+  // initialQuery가 변경되면 query 업데이트
+  useEffect(() => {
+    setQuery(initialQuery);
+  }, [initialQuery]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();

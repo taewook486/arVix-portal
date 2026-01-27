@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import SearchBar from '@/components/SearchBar';
 import CategoryFilter from '@/components/CategoryFilter';
 import PaperList from '@/components/PaperList';
 import { Paper } from '@/types/paper';
+
+const SEARCH_CACHE_KEY = 'arxiv-search-cache';
 
 interface EnhancedSearch {
   originalQuery: string;
@@ -18,7 +21,19 @@ interface EnhancedSearch {
   };
 }
 
+interface SearchCache {
+  query: string;
+  category: string | null;
+  papers: Paper[];
+  total: number;
+  enhanced: EnhancedSearch | null;
+  timestamp: number;
+}
+
 export default function Home() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [papers, setPapers] = useState<Paper[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -26,10 +41,59 @@ export default function Home() {
   const [totalResults, setTotalResults] = useState(0);
   const [hasSearched, setHasSearched] = useState(false);
   const [enhancedSearch, setEnhancedSearch] = useState<EnhancedSearch | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // 최신 논문 로드 (초기 로드)
+  // 캐시에서 검색 결과 복원
+  const restoreFromCache = useCallback(() => {
+    try {
+      const cached = sessionStorage.getItem(SEARCH_CACHE_KEY);
+      if (cached) {
+        const data: SearchCache = JSON.parse(cached);
+        // 5분 이내의 캐시만 사용
+        if (Date.now() - data.timestamp < 5 * 60 * 1000) {
+          setPapers(data.papers);
+          setTotalResults(data.total);
+          setSearchQuery(data.query);
+          setSelectedCategory(data.category);
+          setEnhancedSearch(data.enhanced);
+          setHasSearched(true);
+          return true;
+        }
+      }
+    } catch (e) {
+      console.error('캐시 복원 오류:', e);
+    }
+    return false;
+  }, []);
+
+  // 캐시에 검색 결과 저장
+  const saveToCache = useCallback((data: Omit<SearchCache, 'timestamp'>) => {
+    try {
+      const cache: SearchCache = { ...data, timestamp: Date.now() };
+      sessionStorage.setItem(SEARCH_CACHE_KEY, JSON.stringify(cache));
+    } catch (e) {
+      console.error('캐시 저장 오류:', e);
+    }
+  }, []);
+
+  // 초기 로드: URL 파라미터 또는 캐시에서 복원
   useEffect(() => {
-    loadLatestPapers();
+    const urlQuery = searchParams.get('q');
+    const urlCategory = searchParams.get('category');
+
+    if (urlQuery) {
+      // URL에 검색어가 있으면 해당 검색 수행
+      setSearchQuery(urlQuery);
+      if (urlCategory) setSelectedCategory(urlCategory);
+      performSearch(urlQuery, urlCategory);
+    } else if (restoreFromCache()) {
+      // 캐시 복원 성공
+      setIsInitialized(true);
+    } else {
+      // 최신 논문 로드
+      loadLatestPapers();
+    }
+    setIsInitialized(true);
   }, []);
 
   const loadLatestPapers = async () => {
@@ -48,49 +112,10 @@ export default function Home() {
     }
   };
 
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query);
+  // 검색 수행 함수
+  const performSearch = async (query: string, category: string | null) => {
     setIsLoading(true);
     setHasSearched(true);
-    setEnhancedSearch(null);
-
-    try {
-      const params = new URLSearchParams({
-        query,
-        maxResults: '20',
-      });
-
-      if (selectedCategory) {
-        params.set('category', selectedCategory);
-      }
-
-      const response = await fetch(`/api/arxiv?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        setPapers(data.papers);
-        setTotalResults(data.total);
-        if (data.enhanced) {
-          setEnhancedSearch(data.enhanced);
-        }
-      }
-    } catch (error) {
-      console.error('검색 오류:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCategoryChange = (category: string | null) => {
-    setSelectedCategory(category);
-
-    // 이미 검색어가 있으면 카테고리 변경 시 재검색
-    if (searchQuery) {
-      handleSearchWithCategory(searchQuery, category);
-    }
-  };
-
-  const handleSearchWithCategory = async (query: string, category: string | null) => {
-    setIsLoading(true);
     setEnhancedSearch(null);
 
     try {
@@ -108,14 +133,54 @@ export default function Home() {
         const data = await response.json();
         setPapers(data.papers);
         setTotalResults(data.total);
-        if (data.enhanced) {
-          setEnhancedSearch(data.enhanced);
-        }
+
+        const enhanced = data.enhanced || null;
+        setEnhancedSearch(enhanced);
+
+        // 캐시에 저장
+        saveToCache({
+          query,
+          category,
+          papers: data.papers,
+          total: data.total,
+          enhanced,
+        });
       }
     } catch (error) {
       console.error('검색 오류:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+
+    // URL 업데이트 (히스토리에 추가)
+    const params = new URLSearchParams();
+    params.set('q', query);
+    if (selectedCategory) {
+      params.set('category', selectedCategory);
+    }
+    router.push(`/?${params.toString()}`, { scroll: false });
+
+    await performSearch(query, selectedCategory);
+  };
+
+  const handleCategoryChange = (category: string | null) => {
+    setSelectedCategory(category);
+
+    // 이미 검색어가 있으면 카테고리 변경 시 재검색
+    if (searchQuery) {
+      // URL 업데이트
+      const params = new URLSearchParams();
+      params.set('q', searchQuery);
+      if (category) {
+        params.set('category', category);
+      }
+      router.push(`/?${params.toString()}`, { scroll: false });
+
+      performSearch(searchQuery, category);
     }
   };
 
@@ -129,7 +194,7 @@ export default function Home() {
 
       {/* 검색 섹션 */}
       <div className="bg-white rounded-lg shadow-sm border p-6 space-y-4">
-        <SearchBar onSearch={handleSearch} isLoading={isLoading} />
+        <SearchBar onSearch={handleSearch} isLoading={isLoading} initialQuery={searchQuery} />
         <CategoryFilter
           selectedCategory={selectedCategory}
           onCategoryChange={handleCategoryChange}
