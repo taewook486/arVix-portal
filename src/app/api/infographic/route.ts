@@ -76,9 +76,9 @@ ${keyPointsText}
 한국어로 작성해주세요.
 `;
 
-    // Gemini API 직접 호출 (REST API)
+    // Gemini API 직접 호출 (REST API) - gemini-3-pro-image-preview 모델 사용
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
@@ -93,6 +93,10 @@ ${keyPointsText}
           generationConfig: {
             responseModalities: ['TEXT', 'IMAGE'],
             responseMimeType: 'text/plain',
+          },
+          imageConfig: {
+            aspectRatio: '3:4',  // 세로형 인포그래픽
+            imageSize: '2K',    // 고해상도
           },
         }),
       }
