@@ -95,8 +95,8 @@ ${keyPointsText}
             responseMimeType: 'text/plain',
           },
           imageConfig: {
-            aspectRatio: '3:4',  // 세로형 인포그래픽
-            imageSize: '2K',    // 고해상도
+            aspectRatio: '16:9',  // 와이드스크린
+            imageSize: '4K',      // 최고 해상도
           },
         }),
       }
