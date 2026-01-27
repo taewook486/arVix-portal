@@ -112,8 +112,9 @@ export default function PaperDetailPage({ params }: PageProps) {
     }
   };
 
-  const generateInfographic = async () => {
-    if (!paper || infographicUrl || isGeneratingInfographic) return;
+  const generateInfographic = async (forceRegenerate = false) => {
+    if (!paper || isGeneratingInfographic) return;
+    if (!forceRegenerate && infographicUrl) return;
 
     setIsGeneratingInfographic(true);
 
@@ -129,6 +130,7 @@ export default function PaperDetailPage({ params }: PageProps) {
           keyPoints: [paper.categories.join(', '), `저자: ${paper.authors.slice(0, 3).join(', ')}`],
           methodology: '',
           arxivId: paper.arxivId,
+          forceRegenerate,
         }),
       });
 
@@ -481,23 +483,45 @@ export default function PaperDetailPage({ params }: PageProps) {
             </div>
           </div>
           {infographicUrl && (
-            <a
-              href={infographicUrl}
-              download
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-100 rounded-lg transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              다운로드
-            </a>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => generateInfographic(true)}
+                disabled={isGeneratingInfographic}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                title="인포그래픽 재생성"
+              >
+                <svg className={`w-4 h-4 ${isGeneratingInfographic ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                재생성
+              </button>
+              <a
+                href={infographicUrl}
+                download
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-100 rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                다운로드
+              </a>
+            </div>
           )}
         </div>
 
         {infographicUrl ? (
-          <div className="rounded-lg overflow-hidden border border-amber-200 bg-white">
+          <div className="relative rounded-lg overflow-hidden border border-amber-200 bg-white">
+            {isGeneratingInfographic && (
+              <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center z-10">
+                <svg className="animate-spin w-10 h-10 text-amber-600 mb-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <p className="text-gray-700 font-medium">인포그래픽 재생성 중...</p>
+              </div>
+            )}
             <img
               src={infographicUrl}
               alt="논문 인포그래픽"

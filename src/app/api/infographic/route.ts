@@ -17,7 +17,7 @@ const INFOGRAPHIC_STYLE = `
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, summary, keyPoints, methodology, arxivId } = body;
+    const { title, summary, keyPoints, methodology, arxivId, forceRegenerate } = body;
 
     if (!title || !summary || !keyPoints) {
       return NextResponse.json(
@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 캐시된 인포그래픽이 있는지 확인
-    if (arxivId) {
+    // 캐시된 인포그래픽이 있는지 확인 (forceRegenerate가 true면 스킵)
+    if (arxivId && !forceRegenerate) {
       const cache = await getPaperCache(arxivId);
       if (cache?.infographic_url) {
         return NextResponse.json({
