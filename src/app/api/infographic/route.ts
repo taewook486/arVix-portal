@@ -94,6 +94,7 @@ ${keyPointsText}
             responseModalities: ['TEXT', 'IMAGE'],
             imageConfig: {
               aspectRatio: '16:9',
+              imageSize: '4K',
             },
           },
         }),
