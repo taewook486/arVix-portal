@@ -1,10 +1,12 @@
-import { Paper } from '@/types/paper';
+import { Paper, PaperSource } from '@/types/paper';
 
 const STORAGE_KEY = 'arxiv-portal-bucket';
 const MAX_BUCKET_SIZE = 5;
 
 export interface BucketPaper {
-  arxivId: string;
+  source: PaperSource;
+  sourceId: string;
+  arxivId?: string; // 하위 호환성
   title: string;
   authors: string[];
   abstract: string;
@@ -42,7 +44,7 @@ export function addToBucket(paper: Paper): boolean {
   const bucket = getBucket();
 
   // 이미 존재하는지 확인
-  if (bucket.some(p => p.arxivId === paper.arxivId)) {
+  if (bucket.some(p => p.source === paper.source && p.sourceId === paper.sourceId)) {
     return false;
   }
 
@@ -52,7 +54,9 @@ export function addToBucket(paper: Paper): boolean {
   }
 
   const bucketPaper: BucketPaper = {
-    arxivId: paper.arxivId,
+    source: paper.source,
+    sourceId: paper.sourceId,
+    arxivId: paper.arxivId, // 하위 호환성
     title: paper.title,
     authors: paper.authors,
     abstract: paper.abstract,
@@ -66,9 +70,9 @@ export function addToBucket(paper: Paper): boolean {
 }
 
 // 버킷에서 논문 제거
-export function removeFromBucket(arxivId: string): boolean {
+export function removeFromBucket(source: PaperSource, sourceId: string): boolean {
   const bucket = getBucket();
-  const filtered = bucket.filter(p => p.arxivId !== arxivId);
+  const filtered = bucket.filter(p => !(p.source === source && p.sourceId === sourceId));
 
   if (filtered.length === bucket.length) {
     return false;
@@ -84,9 +88,9 @@ export function clearBucket(): void {
 }
 
 // 버킷에 있는지 확인
-export function isInBucket(arxivId: string): boolean {
+export function isInBucket(source: PaperSource, sourceId: string): boolean {
   const bucket = getBucket();
-  return bucket.some(p => p.arxivId === arxivId);
+  return bucket.some(p => p.source === source && p.sourceId === sourceId);
 }
 
 // 최대 크기 반환

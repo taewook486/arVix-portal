@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { PaperSource } from '@/types/paper';
 import {
   getBookmarks,
   addBookmark,
@@ -21,11 +22,19 @@ export async function GET(request: NextRequest) {
   await ensureInitialized();
 
   const searchParams = request.nextUrl.searchParams;
-  const arxivId = searchParams.get('arxivId');
+  const source = searchParams.get('source') as PaperSource | null;
+  const sourceId = searchParams.get('sourceId');
+  const arxivId = searchParams.get('arxivId'); // 하위 호환성
 
   try {
+    if (source && sourceId) {
+      // source + sourceId로 북마크 여부 확인
+      const bookmarked = await isBookmarked(source, sourceId);
+      return NextResponse.json({ bookmarked });
+    }
+
     if (arxivId) {
-      // 특정 논문의 북마크 여부 확인
+      // 하위 호환성: arxivId만으로도 확인 가능
       const bookmarked = await isBookmarked(arxivId);
       return NextResponse.json({ bookmarked });
     }
@@ -47,7 +56,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { paper, aiSummary } = body;
 
-    if (!paper || !paper.arxivId) {
+    if (!paper || !paper.sourceId) {
       return NextResponse.json({ error: '논문 정보가 필요합니다' }, { status: 400 });
     }
 
@@ -69,14 +78,22 @@ export async function DELETE(request: NextRequest) {
   await ensureInitialized();
 
   const searchParams = request.nextUrl.searchParams;
-  const arxivId = searchParams.get('arxivId');
-
-  if (!arxivId) {
-    return NextResponse.json({ error: 'arxivId가 필요합니다' }, { status: 400 });
-  }
+  const source = searchParams.get('source') as PaperSource | null;
+  const sourceId = searchParams.get('sourceId');
+  const arxivId = searchParams.get('arxivId'); // 하위 호환성
 
   try {
-    const success = await removeBookmark(arxivId);
+    let success = false;
+
+    if (source && sourceId) {
+      // source + sourceId로 삭제
+      success = await removeBookmark(source, sourceId);
+    } else if (arxivId) {
+      // 하위 호환성: arxivId만으로도 삭제 가능
+      success = await removeBookmark(arxivId);
+    } else {
+      return NextResponse.json({ error: 'source와 sourceId 또는 arxivId가 필요합니다' }, { status: 400 });
+    }
 
     if (!success) {
       return NextResponse.json({ error: '북마크 삭제 실패' }, { status: 500 });

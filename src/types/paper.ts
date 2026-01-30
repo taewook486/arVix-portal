@@ -17,13 +17,16 @@ export interface Paper {
 
 export interface Bookmark {
   id: string;
-  arxiv_id: string;
+  source: PaperSource;
+  source_id: string;
+  arxiv_id?: string; // 하위 호환성 유지
   title: string;
   authors: string[];
   abstract: string | null;
   categories: string[] | null;
   published_at: string | null;
   pdf_url: string | null;
+  source_url: string | null;
   ai_summary: string | null;
   created_at: string;
 }

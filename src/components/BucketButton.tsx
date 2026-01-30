@@ -14,11 +14,11 @@ export default function BucketButton({ paper, size = 'sm' }: BucketButtonProps) 
   const [isFull, setIsFull] = useState(false);
 
   useEffect(() => {
-    setInBucket(isInBucket(paper.arxivId));
+    setInBucket(isInBucket(paper.source, paper.sourceId));
     setIsFull(getBucket().length >= getMaxBucketSize());
 
     const handleBucketUpdate = () => {
-      setInBucket(isInBucket(paper.arxivId));
+      setInBucket(isInBucket(paper.source, paper.sourceId));
       setIsFull(getBucket().length >= getMaxBucketSize());
     };
 
@@ -26,14 +26,14 @@ export default function BucketButton({ paper, size = 'sm' }: BucketButtonProps) 
     return () => {
       window.removeEventListener('bucket-updated', handleBucketUpdate);
     };
-  }, [paper.arxivId]);
+  }, [paper.source, paper.sourceId]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
     if (inBucket) {
-      removeFromBucket(paper.arxivId);
+      removeFromBucket(paper.source, paper.sourceId);
       setInBucket(false);
     } else {
       if (addToBucket(paper)) {

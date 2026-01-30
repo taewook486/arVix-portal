@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Bookmark } from '@/types/paper';
+import { Bookmark, PaperSource } from '@/types/paper';
 import { getBookmarks, removeBookmark } from '@/lib/bookmarks';
 
 export default function BookmarksPage() {
@@ -20,10 +20,10 @@ export default function BookmarksPage() {
     setIsLoading(false);
   };
 
-  const handleRemoveBookmark = async (arxivId: string) => {
-    const success = await removeBookmark(arxivId);
+  const handleRemoveBookmark = async (source: PaperSource, sourceId: string) => {
+    const success = await removeBookmark(source, sourceId);
     if (success) {
-      setBookmarks(bookmarks.filter((b) => b.arxiv_id !== arxivId));
+      setBookmarks(bookmarks.filter((b) => !(b.source === source && b.source_id === sourceId)));
     }
   };
 
@@ -35,6 +35,20 @@ export default function BookmarksPage() {
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  const getPaperUrl = (bookmark: Bookmark) => {
+    if (bookmark.source === 'openreview') {
+      return `/paper/openreview/${encodeURIComponent(bookmark.source_id)}`;
+    }
+    // arXiv 또는 기존 데이터 (source가 없는 경우)
+    const id = bookmark.source_id || bookmark.arxiv_id;
+    return `/paper/${encodeURIComponent(id || '')}`;
+  };
+
+  const getSourceLabel = (source: PaperSource | undefined) => {
+    if (source === 'openreview') return 'OpenReview';
+    return 'arXiv';
   };
 
   if (isLoading) {
@@ -99,15 +113,24 @@ export default function BookmarksPage() {
             >
               <div className="flex items-start justify-between gap-4">
                 <Link
-                  href={`/paper/${encodeURIComponent(bookmark.arxiv_id)}`}
+                  href={getPaperUrl(bookmark)}
                   className="flex-1 group"
                 >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                      bookmark.source === 'openreview'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-orange-100 text-orange-700'
+                    }`}>
+                      {getSourceLabel(bookmark.source)}
+                    </span>
+                  </div>
                   <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
                     {bookmark.title}
                   </h3>
                 </Link>
                 <button
-                  onClick={() => handleRemoveBookmark(bookmark.arxiv_id)}
+                  onClick={() => handleRemoveBookmark(bookmark.source || 'arxiv', bookmark.source_id || bookmark.arxiv_id || '')}
                   className="p-2 text-gray-400 hover:text-red-500 transition-colors"
                   title="북마크 삭제"
                 >
@@ -155,7 +178,7 @@ export default function BookmarksPage() {
 
               <div className="mt-4 flex items-center gap-3 text-sm">
                 <Link
-                  href={`/paper/${encodeURIComponent(bookmark.arxiv_id)}`}
+                  href={getPaperUrl(bookmark)}
                   className="font-medium text-blue-600 hover:text-blue-700"
                 >
                   상세 보기

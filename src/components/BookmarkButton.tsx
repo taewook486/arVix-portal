@@ -16,11 +16,11 @@ export default function BookmarkButton({ paper, size = 'md', showLabel = false }
 
   useEffect(() => {
     checkBookmarkStatus();
-  }, [paper.arxivId]);
+  }, [paper.source, paper.sourceId]);
 
   const checkBookmarkStatus = async () => {
     setLoading(true);
-    const status = await isBookmarked(paper.arxivId);
+    const status = await isBookmarked(paper.source, paper.sourceId);
     setBookmarked(status);
     setLoading(false);
   };
@@ -29,7 +29,7 @@ export default function BookmarkButton({ paper, size = 'md', showLabel = false }
     setLoading(true);
     try {
       if (bookmarked) {
-        const success = await removeBookmark(paper.arxivId);
+        const success = await removeBookmark(paper.source, paper.sourceId);
         if (success) {
           setBookmarked(false);
         }

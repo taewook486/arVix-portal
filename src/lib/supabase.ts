@@ -1,4 +1,4 @@
-import { Bookmark, Paper } from '@/types/paper';
+import { Bookmark, Paper, PaperSource } from '@/types/paper';
 
 // 클라이언트에서 API를 통해 북마크 관리
 
@@ -26,9 +26,9 @@ export async function addBookmark(paper: Paper, aiSummary?: string): Promise<Boo
 }
 
 // 북마크 삭제
-export async function removeBookmark(arxivId: string): Promise<boolean> {
+export async function removeBookmark(source: PaperSource, sourceId: string): Promise<boolean> {
   try {
-    const response = await fetch(`/api/bookmarks?arxivId=${encodeURIComponent(arxivId)}`, {
+    const response = await fetch(`/api/bookmarks?source=${encodeURIComponent(source)}&sourceId=${encodeURIComponent(sourceId)}`, {
       method: 'DELETE',
     });
 
@@ -57,9 +57,9 @@ export async function getBookmarks(): Promise<Bookmark[]> {
 }
 
 // 특정 논문의 북마크 여부 확인
-export async function isBookmarked(arxivId: string): Promise<boolean> {
+export async function isBookmarked(source: PaperSource, sourceId: string): Promise<boolean> {
   try {
-    const response = await fetch(`/api/bookmarks?arxivId=${encodeURIComponent(arxivId)}`);
+    const response = await fetch(`/api/bookmarks?source=${encodeURIComponent(source)}&sourceId=${encodeURIComponent(sourceId)}`);
 
     if (!response.ok) {
       return false;

@@ -30,20 +30,23 @@ export async function addBookmark(paper: Paper, aiSummary?: string): Promise<Boo
   try {
     const bookmarks = getStoredBookmarks();
 
-    // 이미 존재하는지 확인
-    if (bookmarks.some(b => b.arxiv_id === paper.arxivId)) {
-      return bookmarks.find(b => b.arxiv_id === paper.arxivId) || null;
+    // 이미 존재하는지 확인 (source + sourceId 조합으로)
+    if (bookmarks.some(b => b.source === paper.source && b.source_id === paper.sourceId)) {
+      return bookmarks.find(b => b.source === paper.source && b.source_id === paper.sourceId) || null;
     }
 
     const newBookmark: Bookmark = {
       id: crypto.randomUUID(),
-      arxiv_id: paper.arxivId,
+      source: paper.source,
+      source_id: paper.sourceId,
+      arxiv_id: paper.arxivId, // 하위 호환성 유지
       title: paper.title,
       authors: paper.authors,
       abstract: paper.abstract,
       categories: paper.categories,
       published_at: paper.publishedAt,
       pdf_url: paper.pdfUrl,
+      source_url: paper.sourceUrl,
       ai_summary: aiSummary || null,
       created_at: new Date().toISOString(),
     };
@@ -59,10 +62,10 @@ export async function addBookmark(paper: Paper, aiSummary?: string): Promise<Boo
 }
 
 // 북마크 삭제
-export async function removeBookmark(arxivId: string): Promise<boolean> {
+export async function removeBookmark(source: string, sourceId: string): Promise<boolean> {
   try {
     const bookmarks = getStoredBookmarks();
-    const filtered = bookmarks.filter(b => b.arxiv_id !== arxivId);
+    const filtered = bookmarks.filter(b => !(b.source === source && b.source_id === sourceId));
 
     if (filtered.length === bookmarks.length) {
       return false; // 삭제할 항목 없음
@@ -82,22 +85,22 @@ export async function getBookmarks(): Promise<Bookmark[]> {
 }
 
 // 특정 논문의 북마크 여부 확인
-export async function isBookmarked(arxivId: string): Promise<boolean> {
+export async function isBookmarked(source: string, sourceId: string): Promise<boolean> {
   const bookmarks = getStoredBookmarks();
-  return bookmarks.some(b => b.arxiv_id === arxivId);
+  return bookmarks.some(b => b.source === source && b.source_id === sourceId);
 }
 
 // 특정 논문의 북마크 정보 조회
-export async function getBookmarkByArxivId(arxivId: string): Promise<Bookmark | null> {
+export async function getBookmarkBySourceId(source: string, sourceId: string): Promise<Bookmark | null> {
   const bookmarks = getStoredBookmarks();
-  return bookmarks.find(b => b.arxiv_id === arxivId) || null;
+  return bookmarks.find(b => b.source === source && b.source_id === sourceId) || null;
 }
 
 // AI 요약 업데이트
-export async function updateAISummary(arxivId: string, aiSummary: string): Promise<boolean> {
+export async function updateAISummary(source: string, sourceId: string, aiSummary: string): Promise<boolean> {
   try {
     const bookmarks = getStoredBookmarks();
-    const index = bookmarks.findIndex(b => b.arxiv_id === arxivId);
+    const index = bookmarks.findIndex(b => b.source === source && b.source_id === sourceId);
 
     if (index === -1) {
       return false;

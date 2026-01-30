@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { BucketPaper, getBucket, removeFromBucket, clearBucket } from '@/lib/bucket';
+import { PaperSource } from '@/types/paper';
 
 interface ComparisonAnalysis {
   commonThemes: string[];
@@ -34,8 +35,8 @@ export default function PaperBucket() {
     };
   }, []);
 
-  const handleRemove = (arxivId: string) => {
-    removeFromBucket(arxivId);
+  const handleRemove = (source: PaperSource, sourceId: string) => {
+    removeFromBucket(source, sourceId);
     setBucket(getBucket());
     setAnalysis(null);
   };
@@ -76,6 +77,15 @@ export default function PaperBucket() {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const getPaperUrl = (paper: BucketPaper) => {
+    if (paper.source === 'openreview') {
+      return `/paper/openreview/${encodeURIComponent(paper.sourceId)}`;
+    }
+    // arXiv 또는 기존 데이터
+    const id = paper.sourceId || paper.arxivId;
+    return `/paper/${encodeURIComponent(id || '')}`;
   };
 
   if (bucket.length === 0 && !showAnalysis) {
@@ -141,11 +151,11 @@ export default function PaperBucket() {
             ) : (
               bucket.map((paper) => (
                 <div
-                  key={paper.arxivId}
+                  key={`${paper.source}-${paper.sourceId}`}
                   className="bg-gray-50 rounded-lg p-3 relative group"
                 >
                   <button
-                    onClick={() => handleRemove(paper.arxivId)}
+                    onClick={() => handleRemove(paper.source, paper.sourceId)}
                     className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -153,10 +163,19 @@ export default function PaperBucket() {
                     </svg>
                   </button>
                   <Link
-                    href={`/paper/${encodeURIComponent(paper.arxivId)}`}
+                    href={getPaperUrl(paper)}
                     className="block"
                     onClick={() => setIsExpanded(false)}
                   >
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className={`px-1.5 py-0.5 text-xs font-medium rounded ${
+                        paper.source === 'openreview'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-orange-100 text-orange-700'
+                      }`}>
+                        {paper.source === 'openreview' ? 'OpenReview' : 'arXiv'}
+                      </span>
+                    </div>
                     <h4 className="text-sm font-medium text-gray-900 line-clamp-2 pr-6 hover:text-indigo-600">
                       {paper.title}
                     </h4>
