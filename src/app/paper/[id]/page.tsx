@@ -104,7 +104,11 @@ export default function PaperDetailPage({ params }: PageProps) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text: paper.abstract, arxivId: paper.arxivId || paper.sourceId }),
+        body: JSON.stringify({
+          text: paper.abstract,
+          arxivId: paper.arxivId || paper.sourceId,
+          source: paper.source
+        }),
       });
 
       if (!response.ok) {
@@ -137,6 +141,7 @@ export default function PaperDetailPage({ params }: PageProps) {
           title: paper.title,
           summary: paper.abstract.slice(0, 500),
           keyPoints: [paper.categories.join(', '), `저자: ${paper.authors.slice(0, 3).join(', ')}`],
+          source: paper.source,
           methodology: '',
           arxivId: paper.arxivId || paper.sourceId,
           forceRegenerate,
@@ -472,7 +477,12 @@ export default function PaperDetailPage({ params }: PageProps) {
       </div>
 
       {/* AI 분석 */}
-      <AIAnalysis title={paper.title} abstract={paper.abstract} arxivId={paper.arxivId || paper.sourceId} />
+      <AIAnalysis
+        title={paper.title}
+        abstract={paper.abstract}
+        arxivId={paper.arxivId || paper.sourceId}
+        source={paper.source}
+      />
 
       {/* 인포그래픽 섹션 */}
       <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-lg p-6 border border-amber-200">

@@ -286,8 +286,8 @@ export async function getPaperCache(sourceOrArxivId: PaperSource | string, sourc
       query = 'SELECT * FROM paper_cache WHERE source = $1 AND source_id = $2';
       params = [sourceOrArxivId as string, sourceId];
     } else {
-      query = 'SELECT * FROM paper_cache WHERE arxiv_id = $1 OR (source = $2 AND source_id = $1)';
-      params = [sourceOrArxivId as string, 'arxiv'];
+      query = 'SELECT * FROM paper_cache WHERE arxiv_id = $1 OR source_id = $1';
+      params = [sourceOrArxivId as string];
     }
 
     const result = await client.query(query, params);
