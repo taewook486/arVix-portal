@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getPaperCache, saveInfographicUrl } from '@/lib/db';
 
 const MERMAID_STYLE = `
@@ -44,9 +43,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
-        { error: 'GEMINI_API_KEY가 설정되지 않았습니다' },
+        { error: 'OPENAI_API_KEY가 설정되지 않았습니다' },
         { status: 500 }
       );
     }
@@ -84,13 +83,31 @@ ${keyPointsText}
 
 Mermaid 문법 참고: https://mermaid.js.org/syntax/flowchart.html`;
 
-    // Gemini API 호출
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    // z.ai API 호출 (OpenAI 호환)
+    const response = await fetch(`${process.env.OPENAI_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'GLM-4.7',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+      }),
+    });
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let text = response.text().trim();
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('z.ai API 오류:', errorText);
+      return NextResponse.json(
+        { error: 'Mermaid 코드 생성에 실패했습니다' },
+        { status: 500 }
+      );
+    }
+
+    const data = await response.json();
+    let text = data.choices[0].message.content?.trim() || '';
 
     // 백틱 블록 제거 (```mermaid 또는 ```)
     text = text.replace(/```mermaid\n?/gi, '');

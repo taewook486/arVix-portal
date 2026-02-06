@@ -1,12 +1,14 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import { AIAnalysis } from '@/types/paper';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: process.env.OPENAI_BASE_URL,
+});
 
 export async function analyzePaper(title: string, abstract: string): Promise<AIAnalysis> {
-  if (!process.env.GEMINI_API_KEY) {
-    console.error('GEMINI_API_KEY가 설정되지 않았습니다.');
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('OPENAI_API_KEY가 설정되지 않았습니다.');
     throw new Error('API 키가 설정되지 않았습니다.');
   }
 
@@ -26,9 +28,13 @@ export async function analyzePaper(title: string, abstract: string): Promise<AIA
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const response = await openai.chat.completions.create({
+      model: 'GLM-4.7',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+    });
+
+    const text = response.choices[0].message.content || '';
 
     // JSON 파싱 시도
     const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -42,7 +48,7 @@ export async function analyzePaper(title: string, abstract: string): Promise<AIA
 }
 
 export async function generateQuickSummary(abstract: string): Promise<string> {
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.OPENAI_API_KEY) {
     throw new Error('API 키가 설정되지 않았습니다.');
   }
 
@@ -53,9 +59,13 @@ ${abstract}
 요약:`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text().trim();
+    const response = await openai.chat.completions.create({
+      model: 'GLM-4.7',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+    });
+
+    return response.choices[0].message.content?.trim() || '';
   } catch (error) {
     console.error('요약 생성 오류:', error);
     throw error;
