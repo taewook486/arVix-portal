@@ -1,0 +1,9 @@
+project:
+  name: arVix-portal
+  description: ''
+  type: ''
+  locale: '{{LOCALE}}'
+  created_at: '2026-02-05T23:47:59.834092Z'
+  initialized: 'true'
+github:
+  profile_name: taewook486

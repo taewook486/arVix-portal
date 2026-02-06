@@ -1,0 +1,7 @@
+{
+  "active": true,
+  "started_at": "2026-02-06T05:22:06.419Z",
+  "original_prompt": "<ide_opened_file>The user opened the file c:\\project\\arVix-portal\\README.md in the IDE. This may or may not be related to the current task.</ide_opened_file>\nhttp://localhost:3000/paper/arxiv:2602.06043  보면 실행은 잘돼. 'AI 논문 분석'과 '인포그래픽 생성'이 안돼. 개선해줘 ulw",
+  "reinforcement_count": 0,
+  "last_checked_at": "2026-02-06T05:22:06.420Z"
+}

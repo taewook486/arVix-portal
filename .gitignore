@@ -39,3 +39,134 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+logs/
+# ===========================================
+*_key.*
+# ============================================
+.VolumeIcon.icns
+*.jks
+.venv/
+Thumbs.db
+.env.*
+.TemporaryItems
+ehthumbs.db
+# Backups
+__pycache__/
+# Purpose: Essential patterns for user projects
+*.sublime-workspace
+.DocumentRevisions-V100
+*.dbm
+*.sublime-project
+# Windows
+.aws/credentials
+.env
+.uv-cache/
+.idea/
+.aws/config
+# Claude Code Configuration
+*.tmp
+.claude/settings.local.*.json
+.claude/skills/*/secrets/
+.uv_cache/
+# Certificate files
+*.egg-info/
+*.p12
+out/
+*.sln
+secret-*.*
+coverage.json
+secret-key-*
+.claude/settings.local.json
+*.swp
+*.pyd
+.Spotlight-V100
+.netlify/
+.fseventsd
+.firebase/
+# FIXED: Issue #237 - Replaced overly broad *key* and *secret* patterns
+*-backup/
+*-key.*
+.claude/plans/
+.next/
+.claude/local/
+*.swo
+# Test Coverage
+*.suo
+*.sw?
+*.db
+# Logs & Temporary Files
+# Build Tools & Frameworks
+*-api-key.*
+env/
+dist-ssr/
+*_backup_*/
+*.njsproj
+# Node.js (for docs/Nextra)
+*.key.*
+*_token=*
+*.pyo
+.claude/skills/*/*/*token*
+*.pyc
+api-key-*
+.claude/skills/*/*/*secret*
+# Credential patterns in environment files
+.vscode/
+# Cloud provider credentials
+.claude/skills/*/.env*
+build/
+.ruff_cache/
+.nuxt/
+*_secret.*
+# Updated: 2026-01-10
+# MoAI-ADK Package Distribution .gitignore
+.tscache/
+*.sqlite3
+.turbo/
+# Deployment & CI/CD
+.claude/skills/*/*/*key*
+*~
+# Skill-specific credentials
+.#*
+*.pfx
+.vercel/
+.Trashes
+*-secret.*
+.pytest_cache/
+.env/
+# OS Files
+*.temp
+# Environment files
+private-key*
+*.bak
+.mypy_cache/
+*.egg
+# Secrets and Credentials (CRITICAL)
+# Mac
+# IDE & Editors
+*.backup/
+*-secret-key.*
+.claude/.env.local*
+venv/
+htmlcov/
+.LSOverride
+!.env.example
+# Build Artifacts & Distribution
+# Version: 0.33.0
+.AppleDouble
+*.backup
+.moai-backups/
+.directory
+.cursor/
+*.sqlite
+# Linux
+*.secret.*
+.coverage
+# Private keys (specific patterns to avoid false positives)
+*_secret=*
+# Python Cache & Bytecode
+[Dd]esktop.ini
+*.log
+*.rdb
+# Virtual Environments
+node_modules/
+dist/

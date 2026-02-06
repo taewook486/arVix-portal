@@ -1,0 +1,33 @@
+{  
+  "$comment": "Windows-specific MCP configuration. Copy this to .mcp.json on Windows systems. cmd /c automatically loads PATH from system environment.",
+  "mcpServers": {
+    "context7": {
+      "$comment": "Windows uses cmd /c which loads PATH automatically (no shell wrapper needed)",
+      "command": "{{MCP_SHELL}}",
+      "args": [
+        "/c",
+        "npx -y @upstash/context7-mcp@latest"
+      ]
+    },
+    "sequential-thinking": {
+      "command": "{{MCP_SHELL}}",
+      "args": [
+        "/c",
+        "npx -y @modelcontextprotocol/server-sequential-thinking"
+      ]
+    },    
+    "memory": {
+      "$comment": "Persistent memory across sessions for user preferences, project context, and learned patterns",
+      "command": "{{MCP_SHELL}}",
+      "args": [
+        "/c",
+        "npx -y @modelcontextprotocol/server-memory"
+      ]
+    }
+  },
+  "staggeredStartup": {
+    "enabled": true,
+    "delayMs": 500,
+    "connectionTimeout": 15000
+  }
+}
