@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const apiKey = process.env.GEMINI_API_KEY || '';
-const genAI = new GoogleGenerativeAI(apiKey);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
 // 날짜를 YYYYMMDD 형식으로 변환
 function formatDate(date: Date): string {
@@ -41,7 +41,7 @@ export async function enhanceSearchQuery(query: string): Promise<EnhancedSearchQ
     };
   }
 
-  if (!apiKey) {
+  if (!process.env.GEMINI_API_KEY) {
     console.warn('GEMINI_API_KEY가 없어 기본 검색을 수행합니다.');
     return {
       originalQuery: query,
@@ -51,8 +51,6 @@ export async function enhanceSearchQuery(query: string): Promise<EnhancedSearchQ
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
-
     // 오늘 날짜 정보 제공
     const today = new Date();
     const todayStr = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;

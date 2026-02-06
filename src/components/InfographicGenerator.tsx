@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import Image from 'next/image';
+import { useState, useEffect, useRef } from 'react';
+import mermaid from 'mermaid';
 
 interface InfographicGeneratorProps {
   title: string;
@@ -16,14 +16,42 @@ export default function InfographicGenerator({
   keyPoints,
   methodology,
 }: InfographicGeneratorProps) {
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [mermaidCode, setMermaidCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const mermaidRef = useRef<HTMLDivElement>(null);
+  const mermaidIdRef = useRef<string>(`mermaid-${Date.now()}`);
+
+  // Mermaid 초기화
+  useEffect(() => {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      securityLevel: 'loose',
+    });
+  }, []);
+
+  // Mermaid 코드 렌더링
+  useEffect(() => {
+    if (mermaidCode && mermaidRef.current) {
+      mermaid
+        .render(mermaidIdRef.current, mermaidCode)
+        .then((result) => {
+          if (mermaidRef.current) {
+            mermaidRef.current.innerHTML = result.svg;
+          }
+        })
+        .catch((err) => {
+          console.error('Mermaid 렌더링 오류:', err);
+          setError('다이어그램 렌더링 중 오류가 발생했습니다');
+        });
+    }
+  }, [mermaidCode]);
 
   const generateInfographic = async () => {
     setIsLoading(true);
     setError(null);
-    setImageUrl(null);
+    setMermaidCode(null);
 
     try {
       const response = await fetch('/api/infographic', {
@@ -45,10 +73,12 @@ export default function InfographicGenerator({
         throw new Error(data.error || '인포그래픽 생성 실패');
       }
 
-      if (data.success && data.imageUrl) {
-        setImageUrl(data.imageUrl);
+      if (data.success && data.mermaidCode) {
+        setMermaidCode(data.mermaidCode);
+        // 새로운 ID 생성하여 렌더링
+        mermaidIdRef.current = `mermaid-${Date.now()}`;
       } else {
-        throw new Error('이미지 생성에 실패했습니다');
+        throw new Error('다이어그램 생성에 실패했습니다');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '알 수 없는 오류');
@@ -58,14 +88,23 @@ export default function InfographicGenerator({
   };
 
   const downloadImage = () => {
-    if (!imageUrl) return;
+    if (!mermaidRef.current) return;
+
+    const svgElement = mermaidRef.current.querySelector('svg');
+    if (!svgElement) return;
+
+    // SVG를 Blob으로 변환하여 다운로드
+    const svgData = new XMLSerializer().serializeToString(svgElement);
+    const blob = new Blob([svgData], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
 
     const link = document.createElement('a');
-    link.href = imageUrl;
-    link.download = `infographic-${Date.now()}.png`;
+    link.href = url;
+    link.download = `infographic-${Date.now()}.svg`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -90,7 +129,7 @@ export default function InfographicGenerator({
         </div>
       </div>
 
-      {!imageUrl && !isLoading && (
+      {!mermaidCode && !isLoading && (
         <button
           onClick={generateInfographic}
           disabled={isLoading}
@@ -157,17 +196,13 @@ export default function InfographicGenerator({
         </div>
       )}
 
-      {imageUrl && (
+      {mermaidCode && (
         <div className="mt-4">
-          <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-white">
-            <Image
-              src={imageUrl}
-              alt="논문 인포그래픽"
-              width={600}
-              height={800}
-              className="w-full h-auto"
-              unoptimized
-            />
+          <div
+            ref={mermaidRef}
+            className="relative rounded-lg overflow-hidden border border-gray-200 bg-white p-4 flex justify-center items-center min-h-[400px]"
+          >
+            {/* Mermaid 다이어그램이 여기에 렌더링됩니다 */}
           </div>
           <div className="mt-4 flex gap-3">
             <button

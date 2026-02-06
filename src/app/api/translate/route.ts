@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getPaperCache, saveTranslation } from '@/lib/db';
 
-const apiKey = process.env.GEMINI_API_KEY || '';
-const genAI = new GoogleGenerativeAI(apiKey);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,11 +22,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!apiKey) {
+    if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json({ error: 'API 키가 설정되지 않았습니다' }, { status: 500 });
     }
-
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
 
     const prompt = `다음 영어 논문 초록을 한국어로 번역해주세요.
 

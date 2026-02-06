@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const apiKey = process.env.GEMINI_API_KEY || '';
-const genAI = new GoogleGenerativeAI(apiKey);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,10 +33,9 @@ Instructions:
 Respond with ONLY the search query, nothing else. Example format:
 transformer attention mechanism natural language processing`;
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const result = await model.generateContent(prompt);
-    const response = result.response;
-    const searchQuery = response.text()?.trim() || '';
+    const response = await result.response;
+    const searchQuery = response.text().trim();
 
     if (!searchQuery) {
       return NextResponse.json(

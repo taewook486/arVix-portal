@@ -1,16 +1,14 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AIAnalysis } from '@/types/paper';
 
-const apiKey = process.env.GEMINI_API_KEY || '';
-const genAI = new GoogleGenerativeAI(apiKey);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
 export async function analyzePaper(title: string, abstract: string): Promise<AIAnalysis> {
-  if (!apiKey) {
+  if (!process.env.GEMINI_API_KEY) {
     console.error('GEMINI_API_KEY가 설정되지 않았습니다.');
     throw new Error('API 키가 설정되지 않았습니다.');
   }
-
-  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
 
   const prompt = `당신은 학술 논문 분석 전문가입니다. 다음 논문의 제목과 초록을 분석하여 JSON 형식으로 응답해주세요.
 
@@ -44,11 +42,9 @@ export async function analyzePaper(title: string, abstract: string): Promise<AIA
 }
 
 export async function generateQuickSummary(abstract: string): Promise<string> {
-  if (!apiKey) {
+  if (!process.env.GEMINI_API_KEY) {
     throw new Error('API 키가 설정되지 않았습니다.');
   }
-
-  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
 
   const prompt = `다음 논문 초록을 한국어로 2-3문장으로 간결하게 요약해주세요:
 
