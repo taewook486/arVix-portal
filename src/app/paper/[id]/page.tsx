@@ -542,7 +542,7 @@ export default function PaperDetailPage({ params }: PageProps) {
               title={paper.title}
               summary={paper.abstract?.slice(0, 500) || ''}
               keyPoints={[paper.categories.join(', '), `저자: ${paper.authors.slice(0, 3).join(', ')}`]}
-              methodology={paper.methodology || ''}
+              methodology={''}
               mermaidCode={infographicUrl.replace('mermaid:', '')}
             />
           ) : (
