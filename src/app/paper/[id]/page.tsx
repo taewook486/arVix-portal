@@ -149,12 +149,21 @@ export default function PaperDetailPage({ params }: PageProps) {
         }),
       });
 
+      // 상세 에러 로깅
       if (!response.ok) {
-        throw new Error('인포그래픽 생성 실패');
+        const errorText = await response.text();
+        console.error('=== 인포그래픽 API 오류 ===');
+        console.error('Status:', response.status);
+        console.error('Status Text:', response.statusText);
+        console.error('Error Body:', errorText);
+        console.error('=========================');
+        throw new Error(`인포그래픽 생성 실패 (${response.status}): ${errorText}`);
       }
 
       const data = await response.json();
-      if (data.imageUrl) {
+      if (data.mermaidCode) {
+        setInfographicUrl('mermaid:' + data.mermaidCode);
+      } else if (data.imageUrl) {
         setInfographicUrl(data.imageUrl);
       }
     } catch (err) {

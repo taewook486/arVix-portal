@@ -66,7 +66,37 @@ export default function InfographicGenerator({
         // Set SVG content
         if (containerRef.current) {
           containerRef.current.innerHTML = svg;
-          console.log('SVG가 컨테이너에 삽입됨');
+
+          // Configure SVG for proper display
+          const svgElement = containerRef.current.querySelector('svg');
+          if (svgElement) {
+            // CRITICAL FIX: Remove width="100%" that Mermaid adds
+            // This causes the SVG to stretch and distort text
+            svgElement.removeAttribute('width');
+
+            // Keep viewBox for proper scaling, remove width constraints
+            svgElement.style.display = 'block';
+            svgElement.style.maxWidth = 'none';
+
+            console.log('SVG width 속성 제거 완료, 원본 비율 유지');
+          }
+
+          // FIX: Allow text wrapping in foreignObject elements
+          const foreignObjects = containerRef.current.querySelectorAll('foreignObject');
+          foreignObjects.forEach((fo: Element) => {
+            // Increase foreignObject width to prevent text truncation
+            fo.setAttribute('width', '400');
+
+            const div = fo.querySelector('div');
+            if (div) {
+              // Allow text wrapping and increase max width
+              (div as HTMLElement).style.whiteSpace = 'normal';
+              (div as HTMLElement).style.wordWrap = 'break-word';
+              (div as HTMLElement).style.maxWidth = '400px';
+            }
+          });
+
+          console.log('SVG가 컨테이너에 삽입됨, 텍스트 래핑 설정 완료');
         }
       } catch (err) {
         console.error('Mermaid 렌더링 에러:', err);
@@ -189,11 +219,15 @@ export default function InfographicGenerator({
         </div>
       )}
 
-      {/* 컨테이너 항상 렌더링 */}
+      {/* 컨테이너 - 스크롤 가능한 영역 (단순화) */}
       <div
         ref={containerRef}
-        className="relative mt-4 rounded-lg overflow-auto border border-gray-200 bg-white p-4"
-        style={{ minHeight: mermaidCode ? '300px' : '0', maxHeight: '2000px' }}
+        className="mt-4 rounded-lg border border-gray-200 bg-white p-4"
+        style={{
+          overflow: 'auto',
+          minHeight: mermaidCode ? '300px' : '0',
+          maxWidth: '100%', // 부모 컨테이너 너비에 맞춤
+        }}
       />
 
       {/* 다이어그램이 있을 때만 다운로드/재생성 버튼 표시 */}

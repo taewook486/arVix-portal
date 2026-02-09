@@ -125,15 +125,31 @@ flowchart TD
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('z.ai API 오류:', errorText);
+      console.error('z.ai API 오류 상세:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText,
+      });
       return NextResponse.json(
-        { error: 'Mermaid 코드 생성에 실패했습니다' },
+        { error: `Mermaid 코드 생성 실패 (${response.status}): ${errorText}` },
         { status: 500 }
       );
     }
 
     const data = await response.json();
+    console.log('z.ai API 응답 구조:', JSON.stringify(data, null, 2).substring(0, 500));
+
+    // choices 배열이 있는지 확인
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('z.ai API 응답 형식 오류:', data);
+      return NextResponse.json(
+        { error: 'API 응답 형식이 올바르지 않습니다' },
+        { status: 500 }
+      );
+    }
+
     let text = data.choices[0].message.content?.trim() || '';
+    console.log('추출된 텍스트 길이:', text.length);
 
     // 백틱 블록 제거 (```mermaid 또는 ```)
     text = text.replace(/```mermaid\n?/gi, '');
