@@ -1,172 +1,198 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-logs/
-# ===========================================
-*_key.*
 # ============================================
-.VolumeIcon.icns
-*.jks
-.venv/
-Thumbs.db
-.env.*
-.TemporaryItems
-ehthumbs.db
-# Backups
-__pycache__/
-# Purpose: Essential patterns for user projects
-*.sublime-workspace
-.DocumentRevisions-V100
-*.dbm
-*.sublime-project
-# Windows
-.aws/credentials
-.env
-.uv-cache/
-.idea/
-.aws/config
-# Claude Code Configuration
-*.tmp
-.claude/settings.local.*.json
-.claude/skills/*/secrets/
-.uv_cache/
-# Certificate files
-*.egg-info/
-*.p12
-out/
-*.sln
-secret-*.*
-coverage.json
-secret-key-*
-.claude/settings.local.json
-*.swp
-*.pyd
-.Spotlight-V100
-.netlify/
-.fseventsd
-.firebase/
-# FIXED: Issue #237 - Replaced overly broad *key* and *secret* patterns
-*-backup/
-*-key.*
-.claude/plans/
-.next/
-.claude/local/
-*.swo
-# Test Coverage
-*.suo
-*.sw?
-*.db
-# Logs & Temporary Files
-# Build Tools & Frameworks
-*-api-key.*
-env/
-dist-ssr/
-*_backup_*/
-*.njsproj
-# Node.js (for docs/Nextra)
-*.key.*
-*_token=*
-*.pyo
-.claude/skills/*/*/*token*
-*.pyc
-api-key-*
-.claude/skills/*/*/*secret*
-# Credential patterns in environment files
-.vscode/
-# Cloud provider credentials
-.claude/skills/*/.env*
-build/
-.ruff_cache/
-.nuxt/
-*_secret.*
-# Updated: 2026-01-10
 # MoAI-ADK Package Distribution .gitignore
-.tscache/
-*.sqlite3
-.turbo/
-# Deployment & CI/CD
-.claude/skills/*/*/*key*
-*~
-# Skill-specific credentials
-.#*
-*.pfx
-.vercel/
-.Trashes
-*-secret.*
-.pytest_cache/
-.env/
-# OS Files
-*.temp
-# Environment files
-private-key*
-*.bak
-.mypy_cache/
-*.egg
-# Secrets and Credentials (CRITICAL)
-# Mac
-# IDE & Editors
-*.backup/
-*-secret-key.*
-.claude/.env.local*
-venv/
-htmlcov/
-.LSOverride
-!.env.example
-# Build Artifacts & Distribution
+# ============================================
 # Version: 0.33.0
-.AppleDouble
-*.backup
-.moai-backups/
-.directory
-.cursor/
-*.sqlite
-# Linux
-*.secret.*
-.coverage
-# Private keys (specific patterns to avoid false positives)
-*_secret=*
-# Python Cache & Bytecode
-[Dd]esktop.ini
-*.log
-*.rdb
-# Virtual Environments
-node_modules/
+# Updated: 2026-01-10
+# Purpose: Essential patterns for user projects
+# ============================================
+
+# ===========================================
+# Go Build Artifacts
+# ===========================================
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+cover.out
+cover.html
+cpu.prof
+mem.prof
+
+# ===========================================
+# Build Artifacts & Distribution
+# ===========================================
+build/
 dist/
+*.egg-info/
+*.egg
+
+# ===========================================
+# Python Cache & Bytecode
+# ===========================================
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+*.pyd
+.mypy_cache/
+.ruff_cache/
+*.db
+*.sqlite
+*.sqlite3
+*.rdb
+*.dbm
+
+# ===========================================
+# Virtual Environments
+# ===========================================
+venv/
+.venv/
+env/
+.env/
+.uv_cache/
+.uv-cache/
+
+# ===========================================
+# Test Coverage
+# ===========================================
+.coverage
+coverage.json
+htmlcov/
+
+# ===========================================
+# IDE & Editors
+# ===========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sw?
+*~
+.cursor/
+*.sublime-project
+*.sublime-workspace
+*.njsproj
+*.sln
+*.suo
+.#*
+
+# ===========================================
+# OS Files
+# ===========================================
+# Mac
+.DS_Store
+.AppleDouble
+.LSOverride
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+
+# Windows
+[Dd]esktop.ini
+Thumbs.db
+ehthumbs.db
+
+# Linux
+.directory
+
+# ===========================================
+# Logs & Temporary Files
+# ===========================================
+*.log
+logs/
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# ===========================================
+# Backups
+# ===========================================
+.moai-backups/
+*.backup/
+*-backup/
+*_backup_*/
+
+# ===========================================
+# Secrets and Credentials (CRITICAL)
+# ===========================================
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Certificate files
+*.pem
+*.p12
+*.pfx
+*.jks
+
+# Private keys (specific patterns to avoid false positives)
+# FIXED: Issue #237 - Replaced overly broad *key* and *secret* patterns
+*-key.*
+*_key.*
+*.key.*
+*-secret-key.*
+*-api-key.*
+api-key-*
+secret-key-*
+private-key*
+*-secret.*
+*_secret.*
+*.secret.*
+secret-*.*
+
+# Credential patterns in environment files
+*_secret=*
+*_token=*
+
+# Cloud provider credentials
+.aws/config
+.aws/credentials
+
+# ===========================================
+# Claude Code Configuration
+# ===========================================
+.claude/settings.local.json
+.claude/settings.local.*.json
+.claude/.env.local*
+.claude/local/
+.claude/plans/
+
+# MCP server configuration with sensitive data
+.mcp.json
+
+# Skill-specific credentials
+.claude/skills/*/.env*
+.claude/skills/*/secrets/
+.claude/skills/*/*/*secret*
+.claude/skills/*/*/*key*
+.claude/skills/*/*/*token*
+
+# ===========================================
+# Node.js (for docs/Nextra)
+# ===========================================
+node_modules/
+*.tsbuildinfo
+.tscache/
+.next/
+out/
+
+# ===========================================
+# Build Tools & Frameworks
+# ===========================================
+.turbo/
+.nuxt/
+dist-ssr/
+
+# ===========================================
+# Deployment & CI/CD
+# ===========================================
+.vercel/
+.netlify/
+.firebase/
