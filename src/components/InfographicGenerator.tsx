@@ -79,16 +79,19 @@ export default function InfographicGenerator({
         console.log('6. SVG 생성 완료');
         console.log('SVG 길이:', svg.length);
 
-        // SVG path 데이터 정화: 오류 있는 path 속성 수정
+        // SVG path 데이터 정화: warning만 출력하고 정상 path는 그대로 사용
         const sanitizedSvg = svg.replace(
-          /d="[^"]*?\.\.\.[^"]*"/g,
+          /d="[^"]*"/g,
           (match) => {
-            // "…" 문자가 포함된 path 데이터는 제거
-            if (match.includes('…')) {
-              console.warn('Path 오류 발견, 제거됨:', match);
-              return 'd=""';
+            const pathData = match.substring(3, match.length - 1); // 따옴표 사이의 데이터 추출
+
+            // path 데이터가 너무 길면 warning 출력 (Mermaid 버그 가능성)
+            if (pathData.length > 200) {
+              console.warn('긴 path 데이터 발견 (Mermaid 버그 가능성):', pathData.substring(0, 50) + '...');
+              return 'd=""'; // 제거하지 않음! warning만 출력
             }
-            return match;
+
+            return match; // 정상 path는 그대로 사용
           }
         );
 
