@@ -8,6 +8,7 @@ GLM 모델 통합 및 Mermaid 인포그래픽 기능 개선 작업
 
 ### API Routes
 - `src/app/api/similar-search/route.ts` - Google Generative AI SDK에서 OpenAI SDK(GLM)로 변경
+- `src/app/api/translate/route.ts` - Google Generative AI SDK에서 OpenAI SDK(GLM)로 변경 (2026-02-14)
 - `src/app/api/infographic/route.ts` - Mermaid 다이어그램 생성 API (GLM-5 사용)
 
 ### 컴포넌트
