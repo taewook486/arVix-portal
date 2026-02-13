@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import DOMPurify from 'dompurify';
 
 interface InfographicGeneratorProps {
   title: string;
   summary: string;
   keyPoints: string[];
-  methodology: string;
-  mermaidCode?: string; // Optional prop for pre-existing mermaid code
+  methodology?: string;
+  mermaidCode?: string;
 }
 
 export default function InfographicGenerator({
@@ -23,119 +24,131 @@ export default function InfographicGenerator({
   const containerRef = useRef<HTMLDivElement>(null);
   const mermaidInitialized = useRef(false);
 
-  // useEffect를 사용하여 state 업데이트 후 DOM이 준비되면 실행
+  // DEBUG: 실제 mermaidCode 출력
   useEffect(() => {
-    console.log('=== useEffect triggered, mermaidCode:', !!mermaidCode, 'containerRef:', !!containerRef.current);
+    if (mermaidCode) {
+      console.log('=== Mermaid Code ===');
+      console.log(mermaidCode);
+      console.log('==================');
+    }
+  }, [mermaidCode]);
 
+  // Mermaid 초기화 및 렌더링
+  useEffect(() => {
     if (!mermaidCode || !containerRef.current) {
-      console.log('조건 불충족, 렌더링 건너뜀');
       return;
     }
 
     const renderDiagram = async () => {
       try {
-        console.log('Mermaid 다이어그램 렌더링 시작...');
+        console.log('1. Mermaid 모듈 로드 시작...');
+
         const mermaidModule = await import('mermaid');
         const mermaid = mermaidModule.default;
 
-        // Initialize mermaid only once
         if (!mermaidInitialized.current) {
-          console.log('Mermaid 초기화 중...');
+          console.log('3. Mermaid 초기화 시작...');
+
           mermaid.initialize({
             startOnLoad: false,
             theme: 'default',
             securityLevel: 'loose',
+            // 한국어 텍스트 렌더링 최적화
+            flowchart: {
+              useMaxWidth: false,
+              htmlLabels: true,
+              curve: 'basis',
+            },
             logLevel: 'error',
+            fontSize: 16,
           });
+
           mermaidInitialized.current = true;
+
+          console.log('4. Mermaid 초기화 완료');
         }
 
-        // Clear container
-        if (containerRef.current) {
-          containerRef.current.innerHTML = '';
-        }
+        console.log('5. 다이어그램 렌더링 시작...');
+        console.log('레더링할 코드:', mermaidCode);
 
-        // Create unique ID
-        const id = `mermaid-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        console.log('Mermaid 렌더링 ID:', id, '코드 길이:', mermaidCode.length);
+        const uniqueId = `mermaid-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        console.log('생성된 ID:', uniqueId);
 
-        // Render mermaid code
-        const { svg } = await mermaid.render(id, mermaidCode);
-        console.log('SVG 렌더링 성공, 길이:', svg.length);
+        const { svg } = await mermaid.render(uniqueId, mermaidCode);
 
-        // Set SVG content
-        if (containerRef.current) {
-          containerRef.current.innerHTML = svg;
+        console.log('6. SVG 생성 완료');
+        console.log('SVG 길이:', svg.length);
 
-          // Configure SVG for proper display
-          const svgElement = containerRef.current.querySelector('svg');
-          if (svgElement) {
-            // CRITICAL FIX: Remove width="100%" that Mermaid adds
-            // This causes the SVG to stretch and distort text
-            svgElement.removeAttribute('width');
-
-            // Keep viewBox for proper scaling, remove width constraints
-            svgElement.style.display = 'block';
-            svgElement.style.maxWidth = 'none';
-
-            console.log('SVG width 속성 제거 완료, 원본 비율 유지');
-          }
-
-          // FIX: Allow text wrapping in foreignObject elements
-          const foreignObjects = containerRef.current.querySelectorAll('foreignObject');
-          foreignObjects.forEach((fo: Element) => {
-            // Increase foreignObject width to prevent text truncation
-            fo.setAttribute('width', '400');
-
-            const div = fo.querySelector('div');
-            if (div) {
-              // Allow text wrapping and increase max width
-              (div as HTMLElement).style.whiteSpace = 'normal';
-              (div as HTMLElement).style.wordWrap = 'break-word';
-              (div as HTMLElement).style.maxWidth = '400px';
+        // SVG path 데이터 정화: 오류 있는 path 속성 수정
+        const sanitizedSvg = svg.replace(
+          /d="[^"]*?\.\.\.[^"]*"/g,
+          (match) => {
+            // "…" 문자가 포함된 path 데이터는 제거
+            if (match.includes('…')) {
+              console.warn('Path 오류 발견, 제거됨:', match);
+              return 'd=""';
             }
-          });
+            return match;
+          }
+        );
 
-          console.log('SVG가 컨테이너에 삽입됨, 텍스트 래핑 설정 완료');
+        console.log('7. SVG 정화 완료');
+
+        if (containerRef.current) {
+          // SVG를 wrapper로 감싸서 크기 조정
+          const wrappedSvg = `
+            <div class="mermaid-wrapper" style="width: 100%; max-width: 1200px; overflow-x: auto;">
+              ${sanitizedSvg}
+            </div>
+          `;
+          containerRef.current.innerHTML = wrappedSvg;
+
+          console.log('8. DOM 주입 완료');
+
+          // SVG 텍스트 요소의 white-space 강제로 normal로 변경
+          setTimeout(() => {
+            const textElements = containerRef.current?.querySelectorAll('text, tspan');
+            if (textElements) {
+              textElements.forEach(el => {
+                (el as SVGElement).style.whiteSpace = 'normal';
+              });
+              console.log('9. 텍스트 white-space 적용 완료:', textElements.length, '개 요소');
+            }
+          }, 100);
         }
       } catch (err) {
         console.error('Mermaid 렌더링 에러:', err);
-        const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류';
-        setError(`다이어그램 렌더링 실패: ${errorMessage}\n\nMermaid 코드:\n${mermaidCode}`);
+        console.error('에러 상세:', JSON.stringify(err, null, 2));
       }
     };
 
-    // Small delay to ensure DOM is ready
+    // DOM이 준비되면 실행 (약간 지연)
     const timeoutId = setTimeout(() => {
-      console.log('지연 후 렌더링 함수 호출');
+      console.log('타이머 시작 - 300ms 지연 후 렌더링 실행');
       renderDiagram();
-    }, 150);
+    }, 300);
 
     return () => {
-      console.log('useEffect cleanup - 타이머 취소');
       clearTimeout(timeoutId);
     };
   }, [mermaidCode]);
 
   const generateInfographic = async () => {
-    console.log('=== generateInfographic 함수 시작 ===');
     setIsLoading(true);
     setError(null);
 
-    // Clear existing content - DOM만 지우고 상태는 유지
+    // Clear existing content
     if (containerRef.current) {
       containerRef.current.innerHTML = '';
     }
 
     try {
-      console.log('API 요청 시작...');
       const response = await fetch('/api/infographic', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, summary, keyPoints, methodology }),
       });
 
-      console.log('API 응답 수신:', response.status);
       const data = await response.json();
 
       if (!response.ok) {
@@ -143,17 +156,17 @@ export default function InfographicGenerator({
       }
 
       if (data.success && data.mermaidCode) {
-        console.log('mermaidCode 설정 완료, 길이:', data.mermaidCode.length);
+        console.log('=== API 응답 받은 Mermaid 코드 ===');
+        console.log(data.mermaidCode);
+        console.log('===================');
         setMermaidCode(data.mermaidCode);
-        console.log('상태 업데이트 완료 - useEffect 트리거 예상');
       } else {
         throw new Error('다이어그램 생성에 실패했습니다');
       }
     } catch (err) {
-      console.error('인포그래픽 생성 에러:', err);
+      console.error('인포그래픽 생성 오류:', err);
       setError(err instanceof Error ? err.message : '알 수 없는 오류');
     } finally {
-      console.log('=== generateInfographic 함수 종료, isLoading=false ===');
       setIsLoading(false);
     }
   };
@@ -179,9 +192,20 @@ export default function InfographicGenerator({
 
   return (
     <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-lg p-6 border border-amber-200">
+      {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        <svg
+          className="w-6 h-6 text-amber-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 16l4.586-4.586a2 2 012.828 0L16 16m-2-2l1.586a1.586 0L20 14m-2-2l1.586a1.586 0L14 12H0c0 4.0 4.0l-1.586-2z"
+          />
         </svg>
         <div>
           <h3 className="text-lg font-semibold text-gray-900">인포그래픽 생성</h3>
@@ -189,7 +213,7 @@ export default function InfographicGenerator({
         </div>
       </div>
 
-      {/* 생성 버튼 항상 표시 (로딩 중일 때만 비활성화) */}
+      {/* Generate Button */}
       <button
         onClick={generateInfographic}
         disabled={isLoading}
@@ -198,52 +222,41 @@ export default function InfographicGenerator({
         {isLoading ? (
           <>
             <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 018-8V0H6z" />
             </svg>
             생성 중...
           </>
         ) : (
           <>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15.232 5.232l3.536m-2.036A18…"
+              />
             </svg>
-            {mermaidCode ? '인포그래픽 다시 만들기' : '인포그래픽 만들기'}
+            인포그래픽 생성
           </>
         )}
       </button>
 
+      {/* Error Display */}
       {error && (
         <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-sm text-red-700 whitespace-pre-wrap">{error}</p>
         </div>
       )}
 
-      {/* 컨테이너 - 스크롤 가능한 영역 (단순화) */}
+      {/* SVG Container with wrapper for size control */}
       <div
         ref={containerRef}
-        className="mt-4 rounded-lg border border-gray-200 bg-white p-4"
+        className="mt-4 rounded-lg border border-gray-200 bg-white p-4 mermaid-container"
         style={{
-          overflow: 'auto',
           minHeight: mermaidCode ? '300px' : '0',
-          maxWidth: '100%', // 부모 컨테이너 너비에 맞춤
         }}
       />
-
-      {/* 다이어그램이 있을 때만 다운로드/재생성 버튼 표시 */}
-      {mermaidCode && (
-        <div className="mt-4 flex gap-3">
-          <button
-            onClick={downloadImage}
-            className="flex-1 px-4 py-2 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600 transition-colors flex items-center justify-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            다운로드
-          </button>
-        </div>
-      )}
     </div>
   );
 }

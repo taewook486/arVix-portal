@@ -24,3 +24,33 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Mermaid SVG 텍스트 잘림 방지 CSS */
+.mermaid-wrapper {
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.mermaid-wrapper svg {
+  overflow: visible !important;
+  min-width: 100%;
+}
+
+.mermaid-wrapper .node {
+  max-width: none !important;
+}
+
+/* white-space: nowrap 제거 - 텍스트 자동 줄바꿈 허용 */
+.mermaid-wrapper text,
+.mermaid-wrapper tspan {
+  overflow: visible !important;
+}
+
+.mermaid-wrapper .label {
+  max-width: none !important;
+  overflow: visible !important;
+}
+
+.mermaid-wrapper foreignObject {
+  overflow: visible !important;
+}
