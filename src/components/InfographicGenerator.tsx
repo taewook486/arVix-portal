@@ -105,14 +105,24 @@ export default function InfographicGenerator({
 
           console.log('8. DOM 주입 완료');
 
-          // SVG 텍스트 요소의 white-space 강제로 normal로 변경
+          // ✅ foreignObject div 직접 조작으로 텍스트 줄바꿈 해결
           setTimeout(() => {
-            const textElements = containerRef.current?.querySelectorAll('text, tspan');
-            if (textElements) {
-              textElements.forEach(el => {
-                (el as SVGElement).style.whiteSpace = 'normal';
+            const foreignObjects = containerRef.current?.querySelectorAll('.mermaid-wrapper foreignObject div');
+
+            if (foreignObjects && foreignObjects.length > 0) {
+              foreignObjects.forEach((div) => {
+                (div as HTMLDivElement).style.whiteSpace = 'normal';
+                (div as HTMLDivElement).style.maxWidth = 'none';
+                (div as HTMLDivElement).style.wordBreak = 'break-word';
+                (div as HTMLDivElement).style.overflowWrap = 'break-word';
+                (div as HTMLDivElement).style.height = 'auto';
+                (div as HTMLDivElement).style.overflow = 'visible';
+                (div as HTMLDivElement).style.width = 'auto';
               });
-              console.log('9. 텍스트 white-space 적용 완료:', textElements.length, '개 요소');
+
+              console.log('✅ foreignObject 스타일 적용 완료:', foreignObjects.length, '개 요소');
+            } else {
+              console.warn('⚠️ foreignObject div를 찾지 못함');
             }
           }, 100);
         }
