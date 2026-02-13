@@ -181,3 +181,19 @@ svgElement.prepend(styleElement);
 - mindmap 원형 노드에서 매우 긴 텍스트는 여전히 잘릴 수 있음
 - fontSize 축소(14px), maxTextWidth, padding 설정으로 partly 해결
 - 사용자는 mindmap 형식을 선호하여 사각형 노드로 변경하지 않음
+
+## 환경 변수 설정 (2026-02-14)
+
+### 로컬 개발 환경 (.env.local)
+
+**문제**: `OPENAI_API_KEY`가 설정되지 않아 AI 분석 기능 작동하지 않음
+**해결**: Zhipu AI GLM Coding Plan용 환경 변수 설정
+
+```env
+OPENAI_API_KEY="d0298e340b9b40c790a9e6c7160b367c.LCdGc3DPrg7Gh30J"
+OPENAI_BASE_URL="https://api.z.ai/api/coding/paas/v4/"
+```
+
+**변경 사항**:
+- 일반 GLM API 엔드포인트(`https://open.bigmodel.cn/api/paas/v4/`) 아닌 Coding Plan 전용 엔드포인트 사용
+- Zhipu AI 문서 참고: https://docs.z.ai
