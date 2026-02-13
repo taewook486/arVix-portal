@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPaperCache, saveInfographicUrl } from '@/lib/db';
+import { createRateLimitMiddleware, RATE_LIMIT_CONFIGS } from '@/lib/rate-limit';
+import { validateRequest, infographicRequestSchema } from '@/lib/schemas';
 
 const MERMAID_STYLE = `
 Mermaid 다이어그램 스타일 가이드:
@@ -21,10 +23,33 @@ Mermaid 다이어그램 스타일 가이드:
 예: A["AgenticPay 프레임워크 구성"]
 `;
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
+  // Rate limiting check
+  const rateLimit = createRateLimitMiddleware(RATE_LIMIT_CONFIGS.AI_API);
+  const rateLimitResult = await rateLimit(request);
+
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: rateLimitResult.error },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': '60',
+          'X-RateLimit-Limit': RATE_LIMIT_CONFIGS.AI_API.maxRequests.toString(),
+          'X-RateLimit-Remaining': '0',
+        },
+      }
+    );
+  }
+
   try {
     const body = await request.json();
-    const { title, summary, keyPoints, methodology, arxivId, source, forceRegenerate } = body;
+
+    // Zod 스키마 검증
+    const validatedData = validateRequest(infographicRequestSchema, body);
+    const { title, summary, keyPoints, methodology, arxivId, source, forceRegenerate } = validatedData;
 
     if (!title || !summary || !keyPoints) {
       return NextResponse.json(
@@ -58,14 +83,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    // Debug logging
-    console.log('=== Environment Variables Debug ===');
-    console.log('OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY);
-    console.log('OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length || 0);
-    console.log('OPENAI_API_KEY prefix:', process.env.OPENAI_API_KEY?.substring(0, 10) || 'N/A');
-    console.log('OPENAI_BASE_URL:', process.env.OPENAI_BASE_URL);
-    console.log('=====================================');
 
     // 핵심 포인트를 문자열로 변환
     const keyPointsText = keyPoints.map((point: string) => `• ${point}`).join('\n');
@@ -125,6 +142,28 @@ flowchart TD
 
     if (!response.ok) {
       const errorText = await response.text();
+
+      // SSL 인증서 오류 감지
+      const isCertificateError =
+        errorText.includes('self-signed certificate') ||
+        errorText.includes('certificate chain') ||
+        errorText.includes('ECONNREFUSED');
+
+      if (isCertificateError) {
+        console.error('Zhipu AI SSL 인증서 오류:', {
+          status: response.status,
+          body: errorText,
+        });
+        return NextResponse.json(
+          {
+            error: 'Mermaid 다이어그램 생성 실패',
+            details: 'AI 서비스의 SSL 인증서 문제로 인포그래픽 생성이 불가능합니다. 잠시 후 다시 시도해주세요.',
+            retryable: true,
+          },
+          { status: 503 } // Service Unavailable
+        );
+      }
+
       console.error('z.ai API 오류 상세:', {
         status: response.status,
         statusText: response.statusText,
@@ -137,7 +176,6 @@ flowchart TD
     }
 
     const data = await response.json();
-    console.log('z.ai API 응답 구조:', JSON.stringify(data, null, 2).substring(0, 500));
 
     // choices 배열이 있는지 확인
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
@@ -149,7 +187,6 @@ flowchart TD
     }
 
     let text = data.choices[0].message.content?.trim() || '';
-    console.log('추출된 텍스트 길이:', text.length);
 
     // 백틱 블록 제거 (```mermaid 또는 ```)
     text = text.replace(/```mermaid\n?/gi, '');
@@ -189,6 +226,25 @@ flowchart TD
   } catch (error) {
     console.error('Mermaid 다이어그램 생성 오류:', error);
     const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
+
+    // 네트워크 또는 SSL 인증서 오류 감지
+    const isNetworkError =
+      errorMessage.includes('certificate') ||
+      errorMessage.includes('ECONNREFUSED') ||
+      errorMessage.includes('ETIMEDOUT') ||
+      errorMessage.includes('self-signed');
+
+    if (isNetworkError) {
+      return NextResponse.json(
+        {
+          error: 'Mermaid 다이어그램 생성 실패',
+          details: 'AI 서비스 연결에 실패했습니다. 네트워크 연결을 확인하거나 잠시 후 다시 시도해주세요.',
+          retryable: true,
+        },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
       { error: `Mermaid 다이어그램 생성 중 오류: ${errorMessage}` },
       { status: 500 }
