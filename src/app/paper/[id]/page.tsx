@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Paper, getCategoryName } from '@/types/paper';
@@ -8,7 +8,7 @@ import BookmarkButton from '@/components/BookmarkButton';
 import AIAnalysis from '@/components/AIAnalysis';
 import MarkdownView from '@/components/MarkdownView';
 import SourceBadge from '@/components/SourceBadge';
-import InfographicGenerator from '@/components/InfographicGenerator';
+import mermaid from 'mermaid';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -30,8 +30,29 @@ export default function PaperDetailPage({ params }: PageProps) {
   const [showOriginal, setShowOriginal] = useState(true);
 
   // 인포그래픽 상태
-  const [infographicUrl, setInfographicUrl] = useState<string | null>(null);
+  const [diagramCode, setDiagramCode] = useState<string | null>(null);
+  const [svgDataUrl, setSvgDataUrl] = useState<string | null>(null);
   const [isGeneratingInfographic, setIsGeneratingInfographic] = useState(false);
+  const infographicContainerRef = useRef<HTMLDivElement>(null);
+
+  // Initialize Mermaid
+  useEffect(() => {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      securityLevel: 'loose',
+      // Add custom font size for better Korean text rendering
+      themeVariables: {
+        fontSize: '14px',
+        fontFamily: 'Arial, sans-serif',
+        maxTextWidth: 500,
+      },
+      mindmap: {
+        padding: 15,
+        useMaxWidth: true,
+      },
+    });
+  }, []);
 
   useEffect(() => {
     loadPaper();
@@ -55,7 +76,7 @@ export default function PaperDetailPage({ params }: PageProps) {
           setTranslation(cache.translation);
         }
         if (cache.infographic_url) {
-          setInfographicUrl(cache.infographic_url);
+          setDiagramCode(cache.infographic_url);
         }
       }
     } catch (err) {
@@ -128,7 +149,7 @@ export default function PaperDetailPage({ params }: PageProps) {
 
   const generateInfographic = async (forceRegenerate = false) => {
     if (!paper || isGeneratingInfographic) return;
-    if (!forceRegenerate && infographicUrl) return;
+    if (!forceRegenerate && diagramCode) return;
 
     setIsGeneratingInfographic(true);
 
@@ -149,22 +170,13 @@ export default function PaperDetailPage({ params }: PageProps) {
         }),
       });
 
-      // 상세 에러 로깅
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('=== 인포그래픽 API 오류 ===');
-        console.error('Status:', response.status);
-        console.error('Status Text:', response.statusText);
-        console.error('Error Body:', errorText);
-        console.error('=========================');
-        throw new Error(`인포그래픽 생성 실패 (${response.status}): ${errorText}`);
+        throw new Error('인포그래픽 생성 실패');
       }
 
       const data = await response.json();
-      if (data.mermaidCode) {
-        setInfographicUrl('mermaid:' + data.mermaidCode);
-      } else if (data.imageUrl) {
-        setInfographicUrl(data.imageUrl);
+      if (data.diagramCode) {
+        setDiagramCode(data.diagramCode);
       }
     } catch (err) {
       console.error('인포그래픽 생성 오류:', err);
@@ -200,6 +212,78 @@ export default function PaperDetailPage({ params }: PageProps) {
       setIsFindingSimilar(false);
     }
   };
+
+  // Render Mermaid diagram when code changes
+  useEffect(() => {
+    const renderDiagram = async () => {
+      if (!diagramCode || !infographicContainerRef.current) return;
+
+      try {
+        const id = `mermaid-${Date.now()}`;
+        const { svg } = await mermaid.render(id, diagramCode);
+
+        if (infographicContainerRef.current) {
+          infographicContainerRef.current.innerHTML = svg;
+          // Extract SVG for download
+          const svgElement = infographicContainerRef.current.querySelector('svg');
+          if (svgElement) {
+            // Add inline styles to SVG for proper display in new window
+            const styleElement = document.createElement('style');
+            styleElement.textContent = `
+              text {
+                font-family: Arial, sans-serif !important;
+                font-size: 16px !important;
+                line-height: 1.4 !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                white-space: normal !important;
+              }
+              * {
+                overflow: visible !important;
+              }
+              .node rect, .node circle, .node path, .node polygon, .foreignObject {
+                overflow: visible !important;
+              }
+              g.node text, .nodeLabel {
+                overflow: visible !important;
+                text-overflow: clip !important;
+                white-space: normal !important;
+              }
+              tspan {
+                overflow: visible !important;
+                white-space: normal !important;
+              }
+            `;
+            svgElement.prepend(styleElement);
+
+            // Ensure viewBox is set
+            if (!svgElement.getAttribute('viewBox')) {
+              const bbox = svgElement.getBBox();
+              svgElement.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
+            }
+
+            const svgData = new XMLSerializer().serializeToString(svgElement);
+            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            setSvgDataUrl(url);
+          }
+        }
+      } catch (err) {
+        console.error('Mermaid render error:', err);
+        // Show raw code as fallback
+        if (infographicContainerRef.current) {
+          infographicContainerRef.current.innerHTML = `
+            <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p class="text-sm text-red-700 font-medium mb-2">다이어그램 렌더링 실패 (Mermaid 문법 오류)</p>
+              <pre class="text-xs bg-gray-100 p-3 rounded overflow-auto max-h-64">${diagramCode}</pre>
+            </div>
+          `;
+        }
+      }
+    };
+
+    renderDiagram();
+  }, [diagramCode]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -508,15 +592,15 @@ export default function PaperDetailPage({ params }: PageProps) {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
               />
             </svg>
             <div>
               <h3 className="text-lg font-semibold text-gray-900">인포그래픽</h3>
-              <p className="text-sm text-gray-600">논문 내용을 시각화한 이미지</p>
+              <p className="text-sm text-gray-600">GLM-5 + Mermaid 다이어그램</p>
             </div>
           </div>
-          {infographicUrl && (
+          {diagramCode && (
             <div className="flex items-center gap-2">
               <button
                 onClick={() => generateInfographic(true)}
@@ -529,48 +613,47 @@ export default function PaperDetailPage({ params }: PageProps) {
                 </svg>
                 재생성
               </button>
-              <a
-                href={infographicUrl}
-                download
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-100 rounded-lg transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                다운로드
-              </a>
+              {svgDataUrl && (
+                <>
+                  <button
+                    onClick={() => window.open(svgDataUrl, '_blank')}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="새 창에서 열기"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    새 창에서 보기
+                  </button>
+                  <a
+                    href={svgDataUrl}
+                    download={`infographic-${Date.now()}.svg`}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-100 rounded-lg transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    다운로드 (SVG)
+                  </a>
+                </>
+              )}
             </div>
           )}
         </div>
 
-        {infographicUrl ? (
-          infographicUrl.startsWith('mermaid:') ? (
-            <InfographicGenerator
-              title={paper.title}
-              summary={paper.abstract?.slice(0, 500) || ''}
-              keyPoints={[paper.categories.join(', '), `저자: ${paper.authors.slice(0, 3).join(', ')}`]}
-              mermaidCode={infographicUrl.replace('mermaid:', '')}
-            />
-          ) : (
-            <div className="relative rounded-lg overflow-hidden border border-amber-200 bg-white">
-              {isGeneratingInfographic && (
-                <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center z-10">
-                  <svg className="animate-spin w-10 h-10 text-amber-600 mb-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  <p className="text-gray-700 font-medium">인포그래픽 재생성 중...</p>
-                </div>
-              )}
-              <img
-                src={infographicUrl}
-                alt="논문 인포그래픽"
-                className="w-full h-auto"
-              />
-            </div>
-          )
+        {diagramCode ? (
+          <div className="relative rounded-lg border border-amber-200 bg-white p-4" style={{ overflow: 'auto' }}>
+            {isGeneratingInfographic && (
+              <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center z-10">
+                <svg className="animate-spin w-10 h-10 text-amber-600 mb-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <p className="text-gray-700 font-medium">다이어그램 재생성 중...</p>
+              </div>
+            )}
+            <div ref={infographicContainerRef} className="mermaid-container flex items-center justify-center min-h-[400px] p-4" style={{ minWidth: '600px' }} />
+          </div>
         ) : (
           <div className="text-center py-10">
             {isGeneratingInfographic ? (
@@ -579,23 +662,23 @@ export default function PaperDetailPage({ params }: PageProps) {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                <p className="text-gray-700 font-medium mb-1">인포그래픽 생성 중...</p>
-                <p className="text-sm text-gray-500">AI가 논문 내용을 시각화하고 있습니다 (30초~1분 소요)</p>
+                <p className="text-gray-700 font-medium mb-1">다이어그램 생성 중...</p>
+                <p className="text-sm text-gray-500">GLM-5로 Mermaid mindmap 다이어그램을 생성 중입니다</p>
               </>
             ) : (
               <>
                 <svg className="w-12 h-12 text-amber-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
                 </svg>
-                <p className="text-gray-600 mb-4">논문 내용을 시각화한 인포그래픽을 생성할 수 있습니다</p>
+                <p className="text-gray-600 mb-4">논문 내용을 시각화한 다이어그램을 생성할 수 있습니다</p>
                 <button
                   onClick={() => generateInfographic()}
                   className="inline-flex items-center gap-2 px-6 py-2.5 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600 transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
-                  인포그래픽 생성
+                  다이어그램 생성
                 </button>
               </>
             )}

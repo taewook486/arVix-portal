@@ -25,32 +25,52 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Mermaid SVG 텍스트 잘림 방지 CSS */
-.mermaid-wrapper {
-  overflow-x: auto;
-  overflow-y: visible;
+/* Mermaid Diagram Styles */
+.mermaid {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
 }
 
-.mermaid-wrapper svg {
-  overflow: visible !important;
-  min-width: 100%;
-}
-
-.mermaid-wrapper .node {
-  max-width: none !important;
-}
-
-/* white-space: nowrap 제거 - 텍스트 자동 줄바꿈 허용 */
-.mermaid-wrapper text,
-.mermaid-wrapper tspan {
+/* Ensure Mermaid SVG is not clipped */
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
   overflow: visible !important;
 }
 
-.mermaid-wrapper .label {
-  max-width: none !important;
+/* Fix text truncation in mindmap nodes */
+.mermaid .mindmapNode,
+.mermaid .node,
+.mermaid g.node rect,
+.mermaid g.node polygon,
+.mermaid g.node circle,
+.mermaid g.node path {
   overflow: visible !important;
 }
 
-.mermaid-wrapper foreignObject {
+/* Ensure text in nodes is not clipped */
+.mermaid .mindmapNode text,
+.mermaid g.node text,
+.mermaid span {
   overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}
+
+/* Fix mindmap specifically */
+.mermaid .mindmap-edge {
+  overflow: visible !important;
+}
+
+/* Ensure the container doesn't clip content */
+.mermaid-container {
+  overflow: visible !important;
+  width: 100%;
+}
+
+/* Increase line height for better readability */
+.mermaid text {
+  line-height: 1.4;
 }

@@ -1,8 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+const apiKey = process.env.OPENAI_API_KEY || '';
+const baseURL = process.env.OPENAI_BASE_URL;
+
+const openai = new OpenAI({
+  apiKey,
+  baseURL,
+});
+
+// Available models in fallback order
+const MODELS = ['glm-5', 'glm-4.7', 'glm-4.7-Flash'] as const;
+
+// Helper function to try models in order
+async function tryModels<T>(
+  models: readonly string[],
+  fn: (model: string) => Promise<T>
+): Promise<T> {
+  const errors: Array<{ model: string; error: unknown }> = [];
+
+  for (const model of models) {
+    try {
+      console.log(`[AI] Trying model: ${model}`);
+      return await fn(model);
+    } catch (error) {
+      console.error(`[AI] Model ${model} failed:`, error);
+      errors.push({ model, error });
+    }
+  }
+
+  throw new Error(
+    `All models failed:\n${errors.map(e => `- ${e.model}: ${e.error}`).join('\n')}`
+  );
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,9 +63,22 @@ Instructions:
 Respond with ONLY the search query, nothing else. Example format:
 transformer attention mechanism natural language processing`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const searchQuery = response.text().trim();
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: 'OPENAI_API_KEY가 설정되지 않았습니다' },
+        { status: 500 }
+      );
+    }
+
+    const result = await tryModels(MODELS, async (model) => {
+      return await openai.chat.completions.create({
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+      });
+    });
+
+    const searchQuery = result.choices[0]?.message?.content?.trim() || '';
 
     if (!searchQuery) {
       return NextResponse.json(
