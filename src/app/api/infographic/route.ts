@@ -1,39 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
 import { getPaperCache, saveInfographicUrl } from '@/lib/db';
-
-const apiKey = process.env.OPENAI_API_KEY || '';
-const baseURL = process.env.OPENAI_BASE_URL;
-
-const openai = new OpenAI({
-  apiKey,
-  baseURL,
-});
-
-// Available models in fallback order
-const MODELS = ['glm-5', 'glm-4.7', 'glm-4.7-Flash'] as const;
-
-// Helper function to try models in order
-async function tryModels<T>(
-  models: readonly string[],
-  fn: (model: string) => Promise<T>
-): Promise<T> {
-  const errors: Array<{ model: string; error: unknown }> = [];
-
-  for (const model of models) {
-    try {
-      console.log(`[AI] Trying model: ${model}`);
-      return await fn(model);
-    } catch (error) {
-      console.error(`[AI] Model ${model} failed:`, error);
-      errors.push({ model, error });
-    }
-  }
-
-  throw new Error(
-    `All models failed:\n${errors.map(e => `- ${e.model}: ${e.error}`).join('\n')}`
-  );
-}
+import { infographicRequestSchema } from '@/lib/schemas';
+import { toAppError, logError, createErrorResponse } from '@/lib/errors';
+import { tryGLMModels, glmClient } from '@/lib/glm';
 
 // GET: 캐시된 인포그래픽 조회
 export async function GET(request: NextRequest) {
@@ -55,15 +24,26 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json({ success: false, diagramCode: null });
   } catch (error) {
-    console.error('캐시 조회 오류:', error);
-    return NextResponse.json({ error: '캐시 조회 실패' }, { status: 500 });
+    logError('Infographic GET', error);
+    const appError = toAppError(error);
+    return NextResponse.json(createErrorResponse(appError), { status: appError.statusCode });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, summary, keyPoints, methodology, arxivId, source, forceRegenerate } = body;
+
+    // Validate request body
+    const validationResult = infographicRequestSchema.safeParse(body);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: '잘못된 요청 파라미터', issues: validationResult.error.issues },
+        { status: 400 }
+      );
+    }
+
+    const { title, summary, keyPoints, methodology, arxivId, source, forceRegenerate } = validationResult.data;
 
     if (!title || !summary || !keyPoints) {
       return NextResponse.json(
@@ -84,7 +64,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!apiKey) {
+    if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
         { error: 'OPENAI_API_KEY가 설정되지 않았습니다' },
         { status: 500 }
@@ -94,7 +74,7 @@ export async function POST(request: NextRequest) {
     // 핵심 포인트를 문자열로 변환
     const keyPointsText = keyPoints.map((point: string) => `- ${point}`).join('\n');
 
-    // GLM-5로 Mermaid 다이어그램 코드 생성
+    // GLM으로 Mermaid 다이어그램 코드 생성
     const prompt = `당신은 학술 논문 시각화 전문가입니다. 다음 논문 내용을 Mermaid mindmap 다이어그램으로 변환해주세요.
 
 논문 정보:
@@ -130,8 +110,8 @@ mindmap
 
 위 형식을 정확히 따르세요. mindmap 다이어그램 코드만 출력:`;
 
-    const result = await tryModels(MODELS, async (model) => {
-      return await openai.chat.completions.create({
+    const result = await tryGLMModels(async (model) => {
+      return await glmClient.chat.completions.create({
         model,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
@@ -191,11 +171,8 @@ mindmap
       cached: false,
     });
   } catch (error) {
-    console.error('다이어그램 생성 오류:', error);
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
-    return NextResponse.json(
-      { error: `다이어그램 생성 중 오류: ${errorMessage}` },
-      { status: 500 }
-    );
+    logError('Infographic POST', error);
+    const appError = toAppError(error);
+    return NextResponse.json(createErrorResponse(appError), { status: appError.statusCode });
   }
 }

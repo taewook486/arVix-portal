@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use, useRef } from 'react';
+import { useState, useEffect, use, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Paper, getCategoryName } from '@/types/paper';
@@ -54,37 +54,8 @@ export default function PaperDetailPage({ params }: PageProps) {
     });
   }, []);
 
-  useEffect(() => {
-    loadPaper();
-  }, [id]);
-
-  // 캐시된 데이터 로드
-  useEffect(() => {
-    if (paper?.sourceId) {
-      loadCachedData();
-    }
-  }, [paper?.sourceId]);
-
-  const loadCachedData = async () => {
-    if (!paper) return;
-    try {
-      const cacheId = paper.arxivId || paper.sourceId;
-      const response = await fetch(`/api/paper-cache?arxivId=${encodeURIComponent(cacheId)}`);
-      if (response.ok) {
-        const cache = await response.json();
-        if (cache.translation) {
-          setTranslation(cache.translation);
-        }
-        if (cache.infographic_url) {
-          setDiagramCode(cache.infographic_url);
-        }
-      }
-    } catch (err) {
-      console.error('캐시 로드 오류:', err);
-    }
-  };
-
-  const loadPaper = async () => {
+  // Load paper data - MUST be defined before the useEffect that uses it
+  const loadPaper = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -110,7 +81,39 @@ export default function PaperDetailPage({ params }: PageProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id]);
+
+  // Load paper on mount
+  useEffect(() => {
+    loadPaper();
+  }, [loadPaper]);
+
+  // 캐시된 데이터 로드
+  const loadCachedData = useCallback(async () => {
+    if (!paper) return;
+    try {
+      const cacheId = paper.arxivId || paper.sourceId;
+      const response = await fetch(`/api/paper-cache?arxivId=${encodeURIComponent(cacheId)}`);
+      if (response.ok) {
+        const cache = await response.json();
+        if (cache.translation) {
+          setTranslation(cache.translation);
+        }
+        if (cache.infographic_url) {
+          setDiagramCode(cache.infographic_url);
+        }
+      }
+    } catch (err) {
+      console.error('캐시 로드 오류:', err);
+    }
+  }, [paper]);
+
+  // Load cached data when paper is loaded
+  useEffect(() => {
+    if (paper?.sourceId) {
+      loadCachedData();
+    }
+  }, [paper?.sourceId, loadCachedData]);
 
   const translateAbstract = async () => {
     if (!paper || translation) {
@@ -119,6 +122,7 @@ export default function PaperDetailPage({ params }: PageProps) {
     }
 
     setIsTranslating(true);
+    setError(null);
 
     try {
       const response = await fetch('/api/translate', {
@@ -134,14 +138,19 @@ export default function PaperDetailPage({ params }: PageProps) {
       });
 
       if (!response.ok) {
-        throw new Error('번역 요청 실패');
+        // Read error response for details
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error?.message || '번역 요청 실패';
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
       setTranslation(data.translation);
       setShowOriginal(false);
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '번역 중 오류가 발생했습니다';
       console.error('번역 오류:', err);
+      setError(errorMessage);
     } finally {
       setIsTranslating(false);
     }
@@ -152,6 +161,7 @@ export default function PaperDetailPage({ params }: PageProps) {
     if (!forceRegenerate && diagramCode) return;
 
     setIsGeneratingInfographic(true);
+    setError(null);
 
     try {
       const response = await fetch('/api/infographic', {
@@ -171,7 +181,10 @@ export default function PaperDetailPage({ params }: PageProps) {
       });
 
       if (!response.ok) {
-        throw new Error('인포그래픽 생성 실패');
+        // Read error response for details
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error?.message || '인포그래픽 생성 실패';
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -179,7 +192,9 @@ export default function PaperDetailPage({ params }: PageProps) {
         setDiagramCode(data.diagramCode);
       }
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '인포그래픽 생성 중 오류가 발생했습니다';
       console.error('인포그래픽 생성 오류:', err);
+      setError(errorMessage);
     } finally {
       setIsGeneratingInfographic(false);
     }

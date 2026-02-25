@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Paper } from '@/types/paper';
 import { addBookmark, removeBookmark, isBookmarked } from '@/lib/bookmarks';
 
@@ -14,16 +14,18 @@ export default function BookmarkButton({ paper, size = 'md', showLabel = false }
   const [bookmarked, setBookmarked] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    checkBookmarkStatus();
-  }, [paper.source, paper.sourceId]);
-
-  const checkBookmarkStatus = async () => {
+  /* eslint-disable react-hooks/set-state-in-effect */
+  const checkBookmarkStatus = useCallback(async () => {
     setLoading(true);
     const status = await isBookmarked(paper.source, paper.sourceId);
     setBookmarked(status);
     setLoading(false);
-  };
+  }, [paper.source, paper.sourceId]);
+
+  useEffect(() => {
+    checkBookmarkStatus();
+  }, [checkBookmarkStatus]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const toggleBookmark = async () => {
     setLoading(true);

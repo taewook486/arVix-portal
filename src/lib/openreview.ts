@@ -79,7 +79,7 @@ function parseNote(note: OpenReviewNote): Paper | null {
       updatedAt,
       pdfUrl,
     };
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -154,7 +154,7 @@ export async function searchOpenReview(params: SearchParams): Promise<{ papers: 
       papers: paginatedPapers,
       total: allPapers.length,
     };
-  } catch (error) {
+  } catch {
     return { papers: [], total: 0 };
   }
 }

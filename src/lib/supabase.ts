@@ -67,7 +67,7 @@ export async function isBookmarked(source: PaperSource, sourceId: string): Promi
 
     const data = await response.json();
     return data.bookmarked;
-  } catch (error) {
+  } catch {
     return false;
   }
 }

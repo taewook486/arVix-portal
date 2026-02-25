@@ -1,17 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { analyzePaper, generateQuickSummary } from '@/lib/ai';
 import { getPaperCache, saveAnalysis } from '@/lib/db';
+import { analyzeRequestSchema } from '@/lib/schemas';
+import { toAppError, logError, createErrorResponse } from '@/lib/errors';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, abstract, arxivId, source, mode = 'full' } = body;
+
+    // Validate request body
+    const validationResult = analyzeRequestSchema.safeParse(body);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: '잘못된 요청 파라미터', issues: validationResult.error.issues },
+        { status: 400 }
+      );
+    }
+
+    const { title, abstract, arxivId, source, mode } = validationResult.data;
 
     if (!abstract) {
       return NextResponse.json({ error: '초록이 필요합니다' }, { status: 400 });
     }
 
-    if (mode === 'quick') {
+    if (mode === 'summary') {
       // 빠른 요약만
       const summary = await generateQuickSummary(abstract);
       return NextResponse.json({ summary });
@@ -42,13 +54,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ...analysis, cached: false });
   } catch (error) {
-    console.error('AI 분석 API 오류:', error);
-
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
-
-    return NextResponse.json(
-      { error: `AI 분석 중 오류가 발생했습니다: ${errorMessage}` },
-      { status: 500 }
-    );
+    logError('Analyze API', error);
+    const appError = toAppError(error);
+    return NextResponse.json(createErrorResponse(appError), { status: appError.statusCode });
   }
 }

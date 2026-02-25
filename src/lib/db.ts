@@ -3,9 +3,9 @@ import { Bookmark, Paper, PaperSource } from '@/types/paper';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: process.env.DATABASE_URL?.includes('localhost') || process.env.DATABASE_URL?.includes('127.0.0.1')
+    ? false
+    : { rejectUnauthorized: false },
 });
 
 export interface PaperCache {
@@ -109,7 +109,7 @@ export async function addBookmark(paper: Paper, aiSummary?: string): Promise<Boo
       ]
     );
     return result.rows[0] || null;
-  } catch (error) {
+  } catch {
     return null;
   } finally {
     client.release();
@@ -134,7 +134,7 @@ export async function removeBookmark(sourceOrArxivId: PaperSource | string, sour
 
     const result = await client.query(query, params);
     return (result.rowCount ?? 0) > 0;
-  } catch (error) {
+  } catch {
     return false;
   } finally {
     client.release();
@@ -148,7 +148,7 @@ export async function getBookmarks(): Promise<Bookmark[]> {
       'SELECT * FROM bookmarks ORDER BY created_at DESC'
     );
     return result.rows;
-  } catch (error) {
+  } catch {
     return [];
   } finally {
     client.release();
@@ -173,7 +173,7 @@ export async function isBookmarked(sourceOrArxivId: PaperSource | string, source
 
     const result = await client.query(query, params);
     return result.rows.length > 0;
-  } catch (error) {
+  } catch {
     return false;
   } finally {
     client.release();
@@ -188,7 +188,7 @@ export async function getBookmarkByArxivId(arxivId: string): Promise<Bookmark | 
       [arxivId, 'arxiv']
     );
     return result.rows[0] || null;
-  } catch (error) {
+  } catch {
     return null;
   } finally {
     client.release();
@@ -213,7 +213,7 @@ export async function updateAISummary(sourceOrArxivId: PaperSource | string, sou
 
     const result = await client.query(query, params);
     return (result.rowCount ?? 0) > 0;
-  } catch (error) {
+  } catch {
     return false;
   } finally {
     client.release();
@@ -304,7 +304,7 @@ export async function getPaperCache(sourceOrArxivId: PaperSource | string, sourc
 
     const result = await client.query(query, params);
     return result.rows[0] || null;
-  } catch (error) {
+  } catch {
     return null;
   } finally {
     client.release();

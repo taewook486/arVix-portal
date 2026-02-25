@@ -35,7 +35,7 @@ export async function uploadInfographic(
     const fileName = `${arxivId.replace(/[^a-zA-Z0-9.-]/g, '_')}_${Date.now()}.png`;
     const filePath = `papers/${fileName}`;
 
-    const { data, error } = await client.storage
+    const { error } = await client.storage
       .from(BUCKET_NAME)
       .upload(filePath, imageBuffer, {
         contentType: 'image/png',

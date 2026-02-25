@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AIAnalysis as AIAnalysisType } from '@/types/paper';
 
 interface AIAnalysisProps {
@@ -17,11 +17,7 @@ export default function AIAnalysis({ title, abstract, arxivId, source }: AIAnaly
   const [isCached, setIsCached] = useState(false);
 
   // 캐시된 데이터 로드
-  useEffect(() => {
-    loadCachedData();
-  }, [arxivId]);
-
-  const loadCachedData = async () => {
+  const loadCachedData = useCallback(async () => {
     try {
       const response = await fetch(`/api/paper-cache?arxivId=${encodeURIComponent(arxivId)}`);
       if (response.ok) {
@@ -34,7 +30,11 @@ export default function AIAnalysis({ title, abstract, arxivId, source }: AIAnaly
     } catch (err) {
       console.error('캐시 로드 오류:', err);
     }
-  };
+  }, [arxivId]);
+
+  useEffect(() => {
+    loadCachedData();
+  }, [loadCachedData]);
 
   const analyzeWithAI = async () => {
     setIsLoading(true);

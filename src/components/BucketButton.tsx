@@ -13,6 +13,7 @@ export default function BucketButton({ paper, size = 'sm' }: BucketButtonProps) 
   const [inBucket, setInBucket] = useState(false);
   const [isFull, setIsFull] = useState(false);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setInBucket(isInBucket(paper.source, paper.sourceId));
     setIsFull(getBucket().length >= getMaxBucketSize());
@@ -27,6 +28,7 @@ export default function BucketButton({ paper, size = 'sm' }: BucketButtonProps) 
       window.removeEventListener('bucket-updated', handleBucketUpdate);
     };
   }, [paper.source, paper.sourceId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();

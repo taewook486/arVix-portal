@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Bookmark, PaperSource } from '@/types/paper';
 import { getBookmarks, removeBookmark } from '@/lib/bookmarks';
@@ -9,23 +9,25 @@ export default function BookmarksPage() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    loadBookmarks();
-  }, []);
-
-  const loadBookmarks = async () => {
+  /* eslint-disable react-hooks/set-state-in-effect */
+  const loadBookmarks = useCallback(async () => {
     setIsLoading(true);
     const data = await getBookmarks();
     setBookmarks(data);
     setIsLoading(false);
-  };
+  }, []);
 
-  const handleRemoveBookmark = async (source: PaperSource, sourceId: string) => {
+  useEffect(() => {
+    loadBookmarks();
+  }, [loadBookmarks]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  const handleRemoveBookmark = useCallback(async (source: PaperSource, sourceId: string) => {
     const success = await removeBookmark(source, sourceId);
     if (success) {
-      setBookmarks(bookmarks.filter((b) => !(b.source === source && b.source_id === sourceId)));
+      setBookmarks((prev) => prev.filter((b) => !(b.source === source && b.source_id === sourceId)));
     }
-  };
+  }, []);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-';

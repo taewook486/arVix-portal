@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+const apiKey = process.env.GEMINI_API_KEY || '';
+const genAI = new GoogleGenerativeAI(apiKey);
 
 interface PaperInput {
   title: string;
@@ -22,12 +22,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!apiKey) {
       return NextResponse.json(
         { error: 'API 키가 설정되지 않았습니다' },
         { status: 500 }
       );
     }
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
 
     const papersText = papers.map((p, i) => `
 논문 ${i + 1}: ${p.title}

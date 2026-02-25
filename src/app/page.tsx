@@ -79,30 +79,8 @@ function HomeContent() {
     }
   }, []);
 
-  // URL 파라미터 변경 감지 및 검색 수행
-  useEffect(() => {
-    const urlQuery = searchParams.get('q');
-    const urlCategory = searchParams.get('category');
-
-    if (urlQuery) {
-      // URL에 검색어가 있으면 해당 검색 수행
-      if (urlQuery !== searchQuery) {
-        setSearchQuery(urlQuery);
-        if (urlCategory) setSelectedCategory(urlCategory);
-        performSearch(urlQuery, urlCategory);
-      }
-    } else if (!isInitialized) {
-      if (restoreFromCache()) {
-        // 캐시 복원 성공
-      } else {
-        // 최신 논문 로드
-        loadLatestPapers();
-      }
-    }
-    setIsInitialized(true);
-  }, [searchParams]);
-
-  const loadLatestPapers = async () => {
+  // 최신 논문 로드
+  const loadLatestPapers = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch('/api/arxiv?action=latest&category=cs.AI&maxResults=10');
@@ -116,10 +94,10 @@ function HomeContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   // 검색 수행 함수
-  const performSearch = async (query: string, category: string | null) => {
+  const performSearch = useCallback(async (query: string, category: string | null) => {
     setIsLoading(true);
     setHasSearched(true);
     setEnhancedSearch(null);
@@ -159,7 +137,27 @@ function HomeContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [saveToCache]);
+
+  // URL 파라미터 변경 감지 및 검색 수행
+  useEffect(() => {
+    const urlQuery = searchParams.get('q');
+    const urlCategory = searchParams.get('category');
+
+    if (urlQuery) {
+      setSearchQuery(urlQuery);
+      if (urlCategory) setSelectedCategory(urlCategory);
+      performSearch(urlQuery, urlCategory);
+    } else if (!isInitialized) {
+      if (restoreFromCache()) {
+        // 캐시 복원 성공
+      } else {
+        // 최신 논문 로드
+        loadLatestPapers();
+      }
+    }
+    setIsInitialized(true);
+  }, [searchParams, performSearch, loadLatestPapers, restoreFromCache, isInitialized]);
 
   // 더보기 함수
   const loadMore = async () => {

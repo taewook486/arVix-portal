@@ -3,6 +3,10 @@ import { searchArxiv, getPaperById as getArxivPaperById, getLatestPapers as getA
 import { searchOpenReview, getPaperById as getOpenReviewPaperById, getLatestPapers as getOpenReviewLatestPapers } from '@/lib/openreview';
 import { enhanceSearchQuery } from '@/lib/search';
 import { Paper } from '@/types/paper';
+import {
+  searchPapersQuerySchema,
+  getPaperParamsSchema,
+} from '@/lib/schemas';
 
 function mergePapers(arxivPapers: Paper[], openreviewPapers: Paper[]): Paper[] {
   const merged: Paper[] = [];
@@ -43,6 +47,12 @@ export async function GET(request: NextRequest) {
       const id = searchParams.get('id');
       if (!id) {
         return NextResponse.json({ error: 'ID가 필요합니다' }, { status: 400 });
+      }
+
+      // Validate source parameter
+      const validatedSource = getPaperParamsSchema.shape.source.safeParse(source);
+      if (!validatedSource.success) {
+        return NextResponse.json({ error: '잘못된 source 파라미터' }, { status: 400 });
       }
 
       let paper: Paper | null = null;
@@ -93,10 +103,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ papers, total: papers.length });
     }
 
-    const query = searchParams.get('query') || '';
-    const category = searchParams.get('category') || undefined;
-    const maxResults = parseInt(searchParams.get('maxResults') || '20', 10);
-    const start = parseInt(searchParams.get('start') || '0', 10);
+    // Validate search parameters
+    const validationResult = searchPapersQuerySchema.safeParse({
+      query: searchParams.get('query') || '',
+      source,
+      category: searchParams.get('category') || undefined,
+      maxResults: searchParams.get('maxResults') || '20',
+      start: searchParams.get('start') || '0',
+    });
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: '잘못된 검색 파라미터', issues: validationResult.error.issues },
+        { status: 400 }
+      );
+    }
+
+    const { query, category, maxResults, start } = validationResult.data;
     const enhance = searchParams.get('enhance') !== 'false';
 
     if (!query) {
@@ -206,7 +229,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ error: '잘못된 source 파라미터' }, { status: 400 });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: 'API 호출 중 오류가 발생했습니다' },
       { status: 500 }
