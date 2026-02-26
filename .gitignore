@@ -164,15 +164,14 @@ secret-*.*
 .claude/local/
 .claude/plans/
 
-# MCP server configuration with sensitive data
-.mcp.json
-
 # Skill-specific credentials
 .claude/skills/*/.env*
 .claude/skills/*/secrets/
 .claude/skills/*/*/*secret*
 .claude/skills/*/*/*key*
 .claude/skills/*/*/*token*
+# Re-include legitimate skill module files containing "token" in their name
+!.claude/skills/*/modules/*token*.md
 
 # ===========================================
 # Node.js (for docs/Nextra)
@@ -196,3 +195,30 @@ dist-ssr/
 .vercel/
 .netlify/
 .firebase/
+
+# User Custom Patterns (preserved by moai update)
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+/coverage
+/.next/
+/out/
+/build
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.env*
+.vercel
+next-env.d.ts
+.env*.local
+.claude/
+.moai/
+.omc/
+.mcp.json
+nul

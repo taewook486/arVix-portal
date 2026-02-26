@@ -1,31 +1,29 @@
 ---
-name: "moai-lang-rust"
-description: "Rust 1.92+ development specialist covering Axum, Tokio, SQLx, and memory-safe systems programming. Use when building high-performance, memory-safe applications or WebAssembly."
-version: 1.2.0
-category: "language"
-modularized: false
+name: moai-lang-rust
+description: >
+  Rust 1.92+ development specialist covering Axum, Tokio, SQLx, and memory-safe systems programming. Use when building high-performance, memory-safe applications or WebAssembly.
+license: Apache-2.0
+compatibility: Designed for Claude Code
+allowed-tools: Read Grep Glob mcp__context7__resolve-library-id mcp__context7__get-library-docs
+user-invocable: false
+metadata:
+  version: "1.2.0"
+  category: "language"
+  status: "active"
+  updated: "2026-01-11"
+  modularized: "false"
+  tags: "language, rust, axum, tokio, sqlx, serde, wasm, cargo"
 
-# Progressive Disclosure Configuration
+# MoAI Extension: Progressive Disclosure
 progressive_disclosure:
   enabled: true
-  level1_tokens: ~100
-  level2_tokens: ~5000
+  level1_tokens: 100
+  level2_tokens: 5000
 
-# Trigger Conditions for Level 2 Loading
+# MoAI Extension: Triggers
 triggers:
-  keywords: ["Rust", "Axum", "Tokio", "SQLx", "serde", ".rs", "Cargo.toml", "async", "await", "lifetime", "trait"]
+  keywords: ["Rust", "Axum", "Tokio", "SQLx", "serde", ".rs", "Cargo.toml", "async", "await", "lifetime", "trait", "ownership", "borrowing", "performance", "optimization", "clippy", "memory safety"]
   languages: ["rust"]
-
-user-invocable: false
-tags: ["language", "rust", "axum", "tokio", "sqlx", "serde", "wasm", "cargo"]
-updated: 2026-01-11
-status: "active"
-allowed-tools:
-  - Read
-  - Grep
-  - Glob
-  - mcp__context7__resolve-library-id
-  - mcp__context7__get-library-docs
 ---
 
 ## Quick Reference (30 seconds)
@@ -102,6 +100,16 @@ Create test module with cfg(test) attribute. Define tokio::test async functions.
 
 ## Advanced Patterns
 
+For comprehensive coverage including:
+
+- Advanced ownership patterns, lifetimes, and smart pointers
+- Trait design and generic programming
+- Performance optimization strategies and profiling
+- Engineering best practices and coding guidelines
+- Async patterns and concurrency
+
+See: [reference/engineering.md](reference/engineering.md) for ownership and traits, [reference/performance.md](reference/performance.md) for optimization, [reference/guidelines.md](reference/guidelines.md) for coding standards
+
 ### Performance Optimization
 
 Release Build: In Cargo.toml profile.release section, enable lto, set codegen-units to 1, set panic to abort, and enable strip.
@@ -160,9 +168,11 @@ Performance Characteristics:
 
 ## Additional Resources
 
-See [reference.md](reference.md) for complete language reference and Context7 library mappings.
+See reference/engineering.md for advanced ownership patterns and trait design.
 
-See [examples.md](examples.md) for production-ready code examples.
+See reference/performance.md for optimization strategies and profiling techniques.
+
+See reference/guidelines.md for Rust coding standards and best practices.
 
 ---
 

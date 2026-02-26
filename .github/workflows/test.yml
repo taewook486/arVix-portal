@@ -1,0 +1,179 @@
+# CI/CD Pipeline for arVix-portal
+# 코드 품질 확인, 테스트 실행, 빌드 검증을 위한 워크플로우
+
+name: CI
+
+# 트리거 조건: Pull Request와 Push 시 실행
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# 동시 실행 방지 설정
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# 환경 변수 설정
+env:
+  NODE_VERSION: '20'
+  NODE_OPTIONS: '--max-old-space-size=4096'
+
+jobs:
+  # Job 1: 린트 및 타입 체크
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      # 체크아웃
+      - name: Checkout 코드
+        uses: actions/checkout@v4
+
+      # Node.js 캐싱 설정
+      - name: Node.js 캐시 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      # 의존성 설치
+      - name: 의존성 설치
+        run: npm ci
+
+      # ESLint 실행
+      - name: ESLint 실행
+        run: npm run lint
+
+      # TypeScript 타입 체크
+      - name: TypeScript 타입 체크
+        run: npx tsc --noEmit
+
+  # Job 2: 테스트 실행
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      # 체크아웃
+      - name: Checkout 코드
+        uses: actions/checkout@v4
+
+      # Node.js 캐싱 설정
+      - name: Node.js 캐시 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      # 의존성 설치
+      - name: 의존성 설치
+        run: npm ci
+
+      # 테스트 실행
+      - name: 테스트 실행
+        run: npm test
+
+      # 커버리지 리포트 생성
+      - name: 커버리지 리포트 생성
+        run: npm run test:coverage
+
+      # 커버리지 아티팩트 업로드
+      - name: 커버리지 아티팩트 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
+
+      # 커버리지 코멘트 PR에 추가 (Pull Request 시)
+      - name: 커버리지 코멘트 추가
+        if: github.event_name == 'pull_request'
+        uses: madrapps/jest-coverage-comment-action@v1
+        with:
+          coverage-path: coverage/coverage-final.json
+          gist-id: ${{ secrets.COVERAGE_GIST_ID }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 커버리지 임계값 확인
+      - name: 커버리지 임계값 확인
+        run: |
+          echo "현재 커버리지 수준 확인"
+          node -e "
+            const fs = require('fs');
+            const coverage = JSON.parse(fs.readFileSync('coverage/coverage-final.json', 'utf8'));
+            const thresholds = { statements: 35, branches: 30, functions: 28, lines: 36 };
+
+            let totals = { statements: { covered: 0, total: 0 }, branches: { covered: 0, total: 0 }, functions: { covered: 0, total: 0 }, lines: { covered: 0, total: 0 } };
+
+            Object.values(coverage).forEach(file => {
+              if (file.statements) { totals.statements.covered += file.statements.covered; totals.statements.total += file.statements.total; }
+              if (file.branches) { totals.branches.covered += file.branches.covered; totals.branches.total += file.branches.total; }
+              if (file.functions) { totals.functions.covered += file.functions.covered; totals.functions.total += file.functions.total; }
+              if (file.lines) { totals.lines.covered += file.lines.covered; totals.lines.total += file.lines.total; }
+            });
+
+            const pct = (covered, total) => total === 0 ? 100 : (covered / total * 100).toFixed(2);
+            console.log('Statements: ' + pct(totals.statements.covered, totals.statements.total) + '% (Threshold: ' + thresholds.statements + '%)');
+            console.log('Branches: ' + pct(totals.branches.covered, totals.branches.total) + '% (Threshold: ' + thresholds.branches + '%)');
+            console.log('Functions: ' + pct(totals.functions.covered, totals.functions.total) + '% (Threshold: ' + thresholds.functions + '%)');
+            console.log('Lines: ' + pct(totals.lines.covered, totals.lines.total) + '% (Threshold: ' + thresholds.lines + '%)');
+
+            let failed = false;
+            if (parseFloat(pct(totals.statements.covered, totals.statements.total)) < thresholds.statements) { console.error('::warning::Statements coverage below threshold'); failed = true; }
+            if (parseFloat(pct(totals.branches.covered, totals.branches.total)) < thresholds.branches) { console.error('::warning::Branches coverage below threshold'); failed = true; }
+            if (parseFloat(pct(totals.functions.covered, totals.functions.total)) < thresholds.functions) { console.error('::warning::Functions coverage below threshold'); failed = true; }
+            if (parseFloat(pct(totals.lines.covered, totals.lines.total)) < thresholds.lines) { console.error('::warning::Lines coverage below threshold'); failed = true; }
+          "
+
+  # Job 3: 빌드 검증
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+
+    steps:
+      # 체크아웃
+      - name: Checkout 코드
+        uses: actions/checkout@v4
+
+      # Node.js 캐싱 설정
+      - name: Node.js 캐시 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      # 의존성 설치
+      - name: 의존성 설치
+        run: npm ci
+
+      # 프로덕션 빌드
+      - name: 프로덕션 빌드
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      # 빌드 아티팩트 업로드
+      - name: 빌드 아티팩트 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: .next/
+          retention-days: 7
+
+  # Job 4: PR 체크 (Pull Request 시에만 실행)
+  pr-checks:
+    name: PR Validation
+    runs-on: ubuntu-latest
+    needs: [build, test]
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: PR 승인 가능 상태 확인
+        run: |
+          echo "모든 체크가 통과되었습니다."
+          echo "PR을 머지할 수 있습니다."

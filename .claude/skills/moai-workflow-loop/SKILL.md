@@ -1,21 +1,20 @@
 ---
 name: moai-workflow-loop
-description: Ralph Engine - Automated feedback loop with LSP diagnostics and AST-grep integration for continuous code quality improvement. Use when implementing error-driven development, automated fixing, or continuous quality validation workflows.
-version: 1.2.0
-category: workflow
-tags: ['lsp', 'ast-grep', 'feedback-loop', 'code-quality', 'automation', 'diagnostics', 'ralph']
+description: >
+  Ralph Engine - Automated feedback loop with LSP diagnostics and AST-grep
+  integration for continuous code quality improvement. Use when implementing
+  error-driven development, automated fixing, or continuous quality validation
+  workflows.
+license: Apache-2.0
+compatibility: Designed for Claude Code
+allowed-tools: Read Write Edit Bash Grep Glob mcp__context7__resolve-library-id mcp__context7__get-library-docs
 user-invocable: false
-updated: 2026-01-11
-status: active
-allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Bash
-  - Grep
-  - Glob
-  - mcp__context7__resolve-library-id
-  - mcp__context7__get-library-docs
+metadata:
+  version: "1.2.0"
+  category: "workflow"
+  status: "active"
+  updated: "2026-01-11"
+  tags: "lsp, ast-grep, feedback-loop, code-quality, automation, diagnostics, ralph"
 ---
 
 # Ralph Engine
@@ -33,15 +32,15 @@ Core Capabilities:
 
 Key Components:
 
-- post_tool__lsp_diagnostic.py: LSP diagnostics after Write/Edit operations
-- stop__loop_controller.py: Loop iteration control
+- post_tool__lsp_diagnostic: LSP diagnostics after Write/Edit operations
+- stop__loop_controller: Loop iteration control
 - ralph.yaml: Configuration settings
 
 Commands:
 
-- /moai:alfred: One-click Plan-Run-Sync automation
-- /moai:loop: Start feedback loop
-- /moai:fix: One-time auto-fix
+- /moai: One-click Plan-Run-Sync automation (default)
+- /moai loop: Start feedback loop
+- /moai fix: One-time auto-fix
 
 When to Use:
 
@@ -54,7 +53,7 @@ When to Use:
 
 ### Architecture Overview
 
-The Ralph Engine follows a layered architecture. User commands such as /moai:loop, /moai:fix, and /moai:alfred enter the Command Layer. The Command Layer invokes the Hook System, which contains the PostToolUse Hook for LSP diagnostics and the Stop Hook for loop control. The Hook System connects to Backend Services including the LSP Client (MoAILSPClient), AST-grep Scanner, and Test Runner. Backend Services feed into Completion Check which evaluates whether errors are zero, tests pass, and coverage is met. Based on the Completion Check result, the system either continues the loop or completes.
+The Ralph Engine follows a layered architecture. User commands such as /moai:loop, /moai:fix, and /moai enter the Command Layer. The Command Layer invokes the Hook System, which contains the PostToolUse Hook for LSP diagnostics and the Stop Hook for loop control. The Hook System connects to Backend Services including the LSP Client (MoAILSPClient), AST-grep Scanner, and Test Runner. Backend Services feed into Completion Check which evaluates whether errors are zero, tests pass, and coverage is met. Based on the Completion Check result, the system either continues the loop or completes.
 
 ### Configuration
 
@@ -92,7 +91,7 @@ Exit code 0 indicates loop complete or inactive. Exit code 1 indicates continue 
 
 ### LSP Client Usage
 
-Initialize the MoAILSPClient from moai_adk.lsp.client with the project_root parameter set to the project directory path.
+The Go LSP client is integrated into the hook system. LSP diagnostics are automatically collected via the post-tool hook (moai hook post-tool-use).
 
 To get diagnostics for a file, call the get_diagnostics method asynchronously with the file path.
 
@@ -179,9 +178,9 @@ Configuration is stored at .moai/config/sections/ralph.yaml.
 
 Loop state is stored at .moai/cache/.moai_loop_state.json.
 
-The LSP hook is located at .claude/hooks/moai/post_tool__lsp_diagnostic.py.
+The LSP hook is located at .claude/hooks/moai/post_tool__lsp_diagnostic.
 
-The loop hook is located at .claude/hooks/moai/stop__loop_controller.py.
+The loop hook is located at .claude/hooks/moai/stop__loop_controller.
 
 ### Supported Languages
 

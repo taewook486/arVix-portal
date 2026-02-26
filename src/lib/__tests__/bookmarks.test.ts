@@ -54,18 +54,21 @@ describe('Bookmarks Library', () => {
 
   describe('removeBookmark', () => {
     it('should remove a bookmark from localStorage', async () => {
+      // Create a mock bookmark that matches the Bookmark interface (snake_case for source_id)
       const existingBookmarks = [
         {
           id: '1',
-          arxivId: '2301.00001',
-          sourceId: '2301.00001',
+          arxiv_id: '2301.00001',
+          source_id: '2301.00001',
           source: 'arxiv' as const,
           title: 'Test Paper',
           authors: ['Author 1'],
           abstract: 'Test abstract',
           categories: ['cs.AI'],
-          publishedAt: '2023-01-01',
-          pdfUrl: 'https://example.com/paper.pdf',
+          published_at: '2023-01-01',
+          pdf_url: 'https://example.com/paper.pdf',
+          source_url: 'https://arxiv.org/abs/2301.00001',
+          ai_summary: null,
           created_at: '2023-01-01',
         },
       ];
@@ -74,24 +77,40 @@ describe('Bookmarks Library', () => {
 
       await removeBookmark('arxiv', '2301.00001');
 
-      expect(mockLocalStorage.setItem).toHaveBeenCalled();
+      // Verify setItem was called with updated bookmarks array (empty after removal)
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+        'arxiv-portal-bookmarks',
+        JSON.stringify([])
+      );
+    });
+
+    it('should return false when bookmark not found', async () => {
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify([]));
+
+      const result = await removeBookmark('arxiv', '2301.00001');
+
+      expect(result).toBe(false);
+      expect(mockLocalStorage.setItem).not.toHaveBeenCalled();
     });
   });
 
   describe('isBookmarked', () => {
     it('should return true if paper is bookmarked', async () => {
+      // Create a mock bookmark that matches the Bookmark interface (snake_case for source_id)
       const existingBookmarks = [
         {
           id: '1',
-          arxivId: '2301.00001',
-          sourceId: '2301.00001',
+          arxiv_id: '2301.00001',
+          source_id: '2301.00001',
           source: 'arxiv' as const,
           title: 'Test Paper',
           authors: ['Author 1'],
           abstract: 'Test abstract',
           categories: ['cs.AI'],
-          publishedAt: '2023-01-01',
-          pdfUrl: 'https://example.com/paper.pdf',
+          published_at: '2023-01-01',
+          pdf_url: 'https://example.com/paper.pdf',
+          source_url: 'https://arxiv.org/abs/2301.00001',
+          ai_summary: null,
           created_at: '2023-01-01',
         },
       ];
@@ -115,15 +134,17 @@ describe('Bookmarks Library', () => {
       const existingBookmarks = [
         {
           id: '1',
-          arxivId: '2301.00001',
-          sourceId: '2301.00001',
+          arxiv_id: '2301.00001',
+          source_id: '2301.00001',
           source: 'arxiv' as const,
           title: 'Test Paper',
           authors: ['Author 1'],
           abstract: 'Test abstract',
           categories: ['cs.AI'],
-          publishedAt: '2023-01-01',
-          pdfUrl: 'https://example.com/paper.pdf',
+          published_at: '2023-01-01',
+          pdf_url: 'https://example.com/paper.pdf',
+          source_url: 'https://arxiv.org/abs/2301.00001',
+          ai_summary: null,
           created_at: '2023-01-01',
         },
       ];
@@ -132,7 +153,7 @@ describe('Bookmarks Library', () => {
 
       const result = await getBookmarks();
       expect(result).toHaveLength(1);
-      expect(result[0].arxivId).toBe('2301.00001');
+      expect(result[0].arxiv_id).toBe('2301.00001');
     });
 
     it('should return empty array when no bookmarks exist', async () => {

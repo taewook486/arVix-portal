@@ -1,27 +1,32 @@
 ---
-name: "moai-foundation-core"
-description: "MoAI-ADK's foundational principles - TRUST 5, SPEC-First DDD, delegation patterns, token optimization, progressive disclosure, modular architecture, agent catalog, command reference, and execution rules for building AI-powered development workflows"
-version: 2.5.0
-category: "foundation"
-modularized: true
+name: moai-foundation-core
+description: >
+  Provides MoAI-ADK foundational principles including TRUST 5 quality framework,
+  SPEC-First DDD methodology, delegation patterns, progressive disclosure,
+  and agent catalog reference.
+  Use when referencing TRUST 5 gates, SPEC workflow, EARS format, DDD methodology,
+  agent delegation patterns, or MoAI orchestration rules.
+  Do NOT use for context and token management (use moai-foundation-context instead)
+  or strategic analysis (use moai-foundation-philosopher instead).
+license: Apache-2.0
+compatibility: Designed for Claude Code
+allowed-tools: Read Grep Glob mcp__context7__resolve-library-id mcp__context7__get-library-docs
 user-invocable: false
-tags: ['foundation', 'core', 'orchestration', 'agents', 'commands', 'trust-5', 'spec-first-ddd']
-updated: 2026-01-21
-status: "active"
-allowed-tools:
-  - Read
-  - Grep
-  - Glob
-  - mcp__context7__resolve-library-id
-  - mcp__context7__get-library-docs
+metadata:
+  version: "2.5.0"
+  category: "foundation"
+  status: "active"
+  updated: "2026-01-21"
+  modularized: "true"
+  tags: "foundation, core, orchestration, agents, commands, trust-5, spec-first-ddd"
 
-# Progressive Disclosure Configuration
+# MoAI Extension: Progressive Disclosure
 progressive_disclosure:
   enabled: true
-  level1_tokens: ~100
-  level2_tokens: ~5000
+  level1_tokens: 100
+  level2_tokens: 5000
 
-# Trigger Conditions for Level 2 Loading
+# MoAI Extension: Triggers
 triggers:
   keywords:
     - "trust-5"
@@ -43,7 +48,6 @@ triggers:
     - "manager-strategy"
     - "manager-quality"
     - "builder-agent"
-    - "builder-command"
     - "builder-skill"
   phases:
     - "plan"
@@ -143,7 +147,7 @@ Detailed Reference: modules/spec-first-ddd.md
 
 Purpose: Task delegation to specialized agents, avoiding direct execution.
 
-Core Principle: Alfred must delegate all work through Task() to specialized agents. Direct execution bypasses specialization, quality gates, and token optimization. Proper delegation improves task success rate by 40 percent and enables parallel execution.
+Core Principle: MoAI must delegate all work through Task() to specialized agents. Direct execution bypasses specialization, quality gates, and token optimization. Proper delegation improves task success rate by 40 percent and enables parallel execution.
 
 Delegation Syntax: Call Task with subagent_type parameter for specialized agent, prompt parameter for clear specific task, and context parameter with relevant data dictionary.
 

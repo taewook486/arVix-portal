@@ -1,13 +1,16 @@
 import OpenAI from 'openai';
 import { AIAnalysis } from '@/types/paper';
 
-const apiKey = process.env.OPENAI_API_KEY || '';
-const baseURL = process.env.OPENAI_BASE_URL;
+// @MX:NOTE: Function to get OpenAI client - dynamically reads API key for testability
+function getOpenAIClient() {
+  const apiKey = process.env.OPENAI_API_KEY || '';
+  const baseURL = process.env.OPENAI_BASE_URL;
 
-const openai = new OpenAI({
-  apiKey,
-  baseURL,
-});
+  return new OpenAI({
+    apiKey,
+    baseURL,
+  });
+}
 
 // Available models in fallback order
 const MODELS = ['glm-5', 'glm-4.7', 'glm-4.7-Flash'] as const;
@@ -35,10 +38,13 @@ async function tryModels<T>(
 }
 
 export async function analyzePaper(title: string, abstract: string): Promise<AIAnalysis> {
+  const apiKey = process.env.OPENAI_API_KEY || '';
   if (!apiKey) {
     console.error('OPENAI_API_KEY가 설정되지 않았습니다.');
     throw new Error('API 키가 설정되지 않았습니다.');
   }
+
+  const openai = getOpenAIClient();
 
   const prompt = `당신은 학술 논문 분석 전문가입니다. 다음 논문의 제목과 초록을 분석하여 JSON 형식으로 응답해주세요.
 
@@ -78,9 +84,12 @@ export async function analyzePaper(title: string, abstract: string): Promise<AIA
 }
 
 export async function generateQuickSummary(abstract: string): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY || '';
   if (!apiKey) {
     throw new Error('API 키가 설정되지 않았습니다.');
   }
+
+  const openai = getOpenAIClient();
 
   const prompt = `다음 논문 초록을 한국어로 2-3문장으로 간결하게 요약해주세요:
 

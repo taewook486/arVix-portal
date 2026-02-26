@@ -1,46 +1,76 @@
-# Workflow Execution Mode Configuration
-# For Ralph-style autonomous workflow execution
-# Reference: SPEC-LSP-001
-
-# Execution mode: interactive or autonomous
-execution_mode:
-  # Interactive mode (default, current MoAI behavior)
-  interactive:
-    user_approval_required: true
-    each_step_explicit: true
-    show_progress: true
-
-  # Autonomous mode (Ralph-style, optional)
-  autonomous:
-    user_approval_required: false
-    continuous_loop: true
-    completion_marker_based: true
-    lsp_feedback_integration: true
-    show_progress: true
-
-# Completion markers for each phase
-completion_markers:
-  plan:
-    spec_document_created: true
-    lsp_baseline_recorded: true
-
-  run:
-    tests_passing: true
-    behavior_preserved: true
-    lsp_errors: 0
-    type_errors: 0
-    coverage_met_target: true
-
-  sync:
-    documentation_generated: true
-    lsp_clean: true
-    quality_gate_passed: true
-
-# Loop prevention (for autonomous mode)
-loop_prevention:
-  max_iterations: 100
-  no_progress_threshold: 5
-  stale_detection:
-    - error_count_unchanged
-    - same_fix_attempted_twice
-    - alternative_strategy_required
+workflow:
+    auto_clear:
+        after_plan: true
+        after_run: false
+        enabled: true
+        token_threshold: 150000
+    completion:
+        detect_in_output: true
+        markers:
+            complete: <moai>COMPLETE</moai>
+            done: <moai>DONE</moai>
+    execution_mode: auto
+    loop_prevention:
+        failure_pattern_detection: true
+        max_iterations: 100
+        max_retries_per_operation: 3
+    team:
+        auto_selection:
+            min_complexity_score: 7
+            min_domains_for_team: 3
+            min_files_for_team: 10
+        default_model: inherit
+        delegate_mode: true
+        enabled: true
+        max_teammates: 10
+        patterns:
+            design_implementation:
+                description: Cross-layer feature implementation with UI/UX design
+                model: inherit
+                roles:
+                    - designer
+                    - backend-dev
+                    - frontend-dev
+                    - tester
+            full_stack:
+                description: Full-stack implementation with quality gate
+                model: inherit
+                roles:
+                    - api-layer
+                    - ui-layer
+                    - data-layer
+                    - quality
+            implementation:
+                description: Cross-layer feature implementation
+                model: inherit
+                roles:
+                    - backend-dev
+                    - frontend-dev
+                    - tester
+            investigation:
+                description: Competing hypothesis debugging
+                model: haiku
+                roles:
+                    - hypothesis-1
+                    - hypothesis-2
+                    - hypothesis-3
+            plan_research:
+                description: Parallel SPEC research and design
+                model: inherit
+                roles:
+                    - researcher
+                    - analyst
+                    - architect
+            review:
+                description: Multi-perspective code review
+                model: inherit
+                roles:
+                    - security-reviewer
+                    - perf-reviewer
+                    - quality-reviewer
+        require_plan_approval: true
+        teammate_display: auto
+    token_budget:
+        plan: 30000
+        run: 180000
+        sync: 40000

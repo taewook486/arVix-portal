@@ -1,44 +1,29 @@
 ---
 name: moai-foundation-claude
-aliases: [moai-foundation-claude]
-category: foundation
-description: Canonical Claude Code authoring kit covering Skills, sub-agents, plugins, slash commands, hooks, memory, settings, sandboxing, headless mode, and advanced agent patterns. Use when creating Claude Code extensions or configuring Claude Code features.
-version: 5.0.0
-modularized: false
+description: >
+  Canonical Claude Code authoring kit covering Skills, sub-agents, plugins, slash commands,
+  hooks, memory, settings, sandboxing, headless mode, and advanced agent patterns.
+  Use when creating Claude Code extensions or configuring Claude Code features.
+license: Apache-2.0
+compatibility: Designed for Claude Code
+allowed-tools: Read Write Edit Grep Glob mcp__context7__resolve-library-id mcp__context7__get-library-docs
 user-invocable: false
-allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Grep
-  - Glob
-  - mcp__context7__resolve-library-id
-  - mcp__context7__get-library-docs
-tags:
-  [
-    "foundation",
-    "claude-code",
-    "skills",
-    "sub-agents",
-    "plugins",
-    "slash-commands",
-    "hooks",
-    "memory",
-    "settings",
-    "sandboxing",
-    "headless",
-    "agent-patterns",
-  ]
-updated: 2026-01-11
-status: "active"
+metadata:
+  version: "5.0.0"
+  category: "foundation"
+  status: "active"
+  updated: "2026-01-11"
+  modularized: "false"
+  tags: "foundation, claude-code, skills, sub-agents, plugins, slash-commands, hooks, memory, settings, sandboxing, headless, agent-patterns"
+  aliases: "moai-foundation-claude"
 
-# Progressive Disclosure Configuration
+# MoAI Extension: Progressive Disclosure
 progressive_disclosure:
   enabled: true
-  level1_tokens: ~100
-  level2_tokens: ~5000
+  level1_tokens: 100
+  level2_tokens: 5000
 
-# Trigger Conditions for Level 2 Loading
+# MoAI Extension: Triggers
 triggers:
   keywords:
     - "skill"
@@ -57,7 +42,6 @@ triggers:
     - "delegation"
   agents:
     - "builder-agent"
-    - "builder-command"
     - "builder-skill"
     - "builder-plugin"
   phases:
@@ -211,11 +195,11 @@ When using Explore agent or direct exploration tools (Grep, Glob, Read), apply t
 
 **Search Scope Limitation**
 - Always use `path` parameter to limit search scope
-- Example: `Grep(pattern="async def", path="src/moai_adk/core/")` instead of `Grep(pattern="async def")`
+- Example: `Grep(pattern="func ", path="internal/core/")` instead of `Grep(pattern="async def")`
 
 **File Pattern Specificity**
 - Use specific Glob patterns instead of wildcards
-- Example: `Glob(pattern="src/moai_adk/core/*.py")` instead of `Glob(pattern="src/**/*.py")`
+- Example: `Glob(pattern="internal/core/*.go")` instead of `Glob(pattern="src/**/*.py")`
 
 **Parallel Processing**
 - Execute independent searches in parallel (single message, multiple tool calls)

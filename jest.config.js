@@ -8,7 +8,7 @@ const createJestConfig = nextJest({
 
 // Add any custom config to be passed to Jest
 const customJestConfig = {
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
@@ -19,6 +19,16 @@ const customJestConfig = {
     '!src/**/*.stories.{js,jsx,ts,tsx}',
     '!src/**/__tests__/**',
   ],
+  // Progressive coverage thresholds - 현재 커버리지 수준에 맞춰 설정
+  // 점진적으로 임계값을 높여 나갈 수 있도록 낮게 설정
+  coverageThreshold: {
+    global: {
+      statements: 35,   // 현재: 35.66%
+      branches: 30,     // 현재: 30.99%
+      functions: 28,    // 현재: 28.09%
+      lines: 36,        // 현재: 36.21%
+    },
+  },
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
