@@ -28,37 +28,45 @@ jest.mock('next/link', () => ({
 // @MX:NOTE: 커스텀 이벤트 모킹
 const mockDispatchEvent = jest.fn();
 
-// window 객체가 없는 환경에서의 에러 방지
-if (typeof (global as any).window !== 'undefined') {
-  (global as any).window.dispatchEvent = mockDispatchEvent;
-  (global as any).window.addEventListener = jest.fn();
-  (global as any).window.removeEventListener = jest.fn();
-  (global as any).window.CustomEvent = class CustomEvent {
+// localStorage mock
+const mockLocalStorage = {
+  getItem: jest.fn(() => null),
+  setItem: jest.fn(),
+  clear: jest.fn(),
+  removeItem: jest.fn(),
+  length: 0,
+  key: jest.fn(),
+};
+
+// @MX:NOTE: global window 객체 설정 - typeof window === 'undefined' 체크를 통과하기 위해
+(global as any).window = {
+  localStorage: mockLocalStorage,
+  dispatchEvent: mockDispatchEvent,
+  addEventListener: jest.fn(),
+  removeEventListener: jest.fn(),
+  CustomEvent: class CustomEvent {
     type: string;
     detail: any;
     constructor(type: string, options: { detail: any }) {
       this.type = type;
       this.detail = options.detail;
     }
-  };
-}
+  },
+};
+
+// global localStorage도 설정
+(global as any).localStorage = mockLocalStorage;
 
 // Mock fetch for compare API
 global.fetch = jest.fn();
 
-// Mock data - store globally for mock access
-let mockBucketData: BucketPaper[] = [];
+// @MX:NOTE: localStorage만 mock하고 실제 bucket 모듈 사용
+jest.mock('@/lib/bucket', () => ({
+  __esModule: true,
+  ...jest.requireActual('@/lib/bucket'),
+}));
 
-// @MX:NOTE: bucket 라이브러리 모킹 - factory function 내에서 직접 jest.fn 생성
-jest.mock('@/lib/bucket', () => {
-  return {
-    getBucket: jest.fn(() => mockBucketData),
-    removeFromBucket: jest.fn(() => true),
-    clearBucket: jest.fn(() => {}),
-    getMaxBucketSize: jest.fn(() => 5),
-    BucketPaper: {} as any,
-  };
-});
+import * as bucketModule from '@/lib/bucket';
 
 describe('PaperBucket Component (DDD Mode - Characterization Tests)', () => {
   const mockBucket: BucketPaper[] = [
@@ -95,11 +103,8 @@ describe('PaperBucket Component (DDD Mode - Characterization Tests)', () => {
   const bucket = require('@/lib/bucket');
 
   beforeEach(() => {
-    mockBucketData = mockBucket;
-    bucket.getBucket.mockReturnValue(mockBucket);
-    bucket.removeFromBucket.mockReturnValue(true);
-    bucket.clearBucket.mockReturnValue(undefined);
-    bucket.getMaxBucketSize.mockReturnValue(5);
+    // localStorage mock 설정 - 실제 getBucket 함수가 이를 사용함
+    mockLocalStorage.getItem.mockReturnValue(JSON.stringify(mockBucket));
 
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
@@ -108,22 +113,27 @@ describe('PaperBucket Component (DDD Mode - Characterization Tests)', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    // @MX:NOTE: mockClear는 호출 기록만 지움, mockReturnValue는 유지됨
+    mockLocalStorage.getItem.mockClear();
   });
 
   describe('초기 렌더링', () => {
     it('버킷이 비어있으면 아무것도 렌더링하지 않아야 함', () => {
-      bucket.getBucket.mockReturnValue([]);
+      mockLocalStorage.getItem.mockReturnValue(null);
 
       const { container } = render(<PaperBucket />);
 
       expect(container.firstChild).toBeNull();
     });
 
-    it('플로팅 버튼을 표시해야 함', () => {
+    it('플로팅 버튼을 표시해야 함', async () => {
+      // 명시적으로 localStorage mock 설정 (이전 테스트의 영향을 방지)
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(mockBucket));
+
       render(<PaperBucket />);
 
-      const floatingButton = screen.getByRole('button');
+      // useEffect가 실행될 때까지 기다림
+      const floatingButton = await screen.findByRole('button', {}, { timeout: 3000 });
       expect(floatingButton).toBeInTheDocument();
     });
 
@@ -277,7 +287,7 @@ describe('PaperBucket Component (DDD Mode - Characterization Tests)', () => {
     });
 
     it('논문이 2개 미만일 때 비교 분석 버튼이 비활성화되어야 함', () => {
-      bucket.getBucket.mockReturnValue([mockBucket[0]]);
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify([mockBucket[0]]));
 
       render(<PaperBucket />);
 
@@ -289,7 +299,7 @@ describe('PaperBucket Component (DDD Mode - Characterization Tests)', () => {
     });
 
     it('2개 미만일 때 안내 메시지를 표시해야 함', () => {
-      bucket.getBucket.mockReturnValue([mockBucket[0]]);
+      mockLocalStorage.getItem.mockReturnValue(JSON.stringify([mockBucket[0]]));
 
       render(<PaperBucket />);
 
@@ -477,7 +487,7 @@ describe('PaperBucket Component (DDD Mode - Characterization Tests)', () => {
 
   describe('빈 버킷 상태', () => {
     it('빈 버킷일 때 안내 메시지를 표시해야 함', () => {
-      bucket.getBucket.mockReturnValue([]);
+      mockLocalStorage.getItem.mockReturnValue(null);
 
       render(<PaperBucket />);
 
@@ -490,13 +500,13 @@ describe('PaperBucket Component (DDD Mode - Characterization Tests)', () => {
     });
 
     it('빈 버킷 상태에서 열면 안내 메시지를 표시해야 함', () => {
-      bucket.getBucket.mockReturnValue([]);
+      mockLocalStorage.getItem.mockReturnValue(null);
 
       render(<PaperBucket />);
 
       // showAnalysis 상태를 true로 설정하려면 컴포넌트가 열린 상태로 시작해야 함
       // 빈 버킷이지만 분석 결과 모달이 있을 때
-      bucket.getBucket.mockReturnValue([]);
+      mockLocalStorage.getItem.mockReturnValue(null);
 
       const { rerender } = render(<PaperBucket />);
 
