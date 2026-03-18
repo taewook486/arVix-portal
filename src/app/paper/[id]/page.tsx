@@ -1,14 +1,12 @@
 'use client';
 
-import { useState, useEffect, use, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, use, useCallback } from 'react';
 import Link from 'next/link';
-import { Paper, getCategoryName } from '@/types/paper';
-import BookmarkButton from '@/components/BookmarkButton';
+import { Paper } from '@/types/paper';
 import AIAnalysis from '@/components/AIAnalysis';
-import MarkdownView from '@/components/MarkdownView';
-import SourceBadge from '@/components/SourceBadge';
-import mermaid from 'mermaid';
+import PaperInfo from './_components/PaperInfo';
+import AbstractSection from './_components/AbstractSection';
+import InfographicSection from './_components/InfographicSection';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -16,45 +14,10 @@ interface PageProps {
 
 export default function PaperDetailPage({ params }: PageProps) {
   const { id } = use(params);
-  const router = useRouter();
   const [paper, setPaper] = useState<Paper | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 유사 논문 검색 상태
-  const [isFindingSimilar, setIsFindingSimilar] = useState(false);
-
-  // 번역 상태
-  const [translation, setTranslation] = useState<string | null>(null);
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [showOriginal, setShowOriginal] = useState(true);
-
-  // 인포그래픽 상태
-  const [diagramCode, setDiagramCode] = useState<string | null>(null);
-  const [svgDataUrl, setSvgDataUrl] = useState<string | null>(null);
-  const [isGeneratingInfographic, setIsGeneratingInfographic] = useState(false);
-  const infographicContainerRef = useRef<HTMLDivElement>(null);
-
-  // Initialize Mermaid
-  useEffect(() => {
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: 'default',
-      securityLevel: 'loose',
-      // Add custom font size for better Korean text rendering
-      themeVariables: {
-        fontSize: '14px',
-        fontFamily: 'Arial, sans-serif',
-        maxTextWidth: 500,
-      },
-      mindmap: {
-        padding: 15,
-        useMaxWidth: true,
-      },
-    });
-  }, []);
-
-  // Load paper data - MUST be defined before the useEffect that uses it
   const loadPaper = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -83,231 +46,9 @@ export default function PaperDetailPage({ params }: PageProps) {
     }
   }, [id]);
 
-  // Load paper on mount
   useEffect(() => {
     loadPaper();
   }, [loadPaper]);
-
-  // 캐시된 데이터 로드
-  const loadCachedData = useCallback(async () => {
-    if (!paper) return;
-    try {
-      const cacheId = paper.arxivId || paper.sourceId;
-      const response = await fetch(`/api/paper-cache?arxivId=${encodeURIComponent(cacheId)}`);
-      if (response.ok) {
-        const cache = await response.json();
-        if (cache.translation) {
-          setTranslation(cache.translation);
-        }
-        if (cache.infographic_url) {
-          setDiagramCode(cache.infographic_url);
-        }
-      }
-    } catch (err) {
-      console.error('캐시 로드 오류:', err);
-    }
-  }, [paper]);
-
-  // Load cached data when paper is loaded
-  useEffect(() => {
-    if (paper?.sourceId) {
-      loadCachedData();
-    }
-  }, [paper?.sourceId, loadCachedData]);
-
-  const translateAbstract = async () => {
-    if (!paper || translation) {
-      setShowOriginal(false);
-      return;
-    }
-
-    setIsTranslating(true);
-    setError(null);
-
-    try {
-      const response = await fetch('/api/translate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: paper.abstract,
-          arxivId: paper.arxivId || paper.sourceId,
-          source: paper.source
-        }),
-      });
-
-      if (!response.ok) {
-        // Read error response for details
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error?.message || '번역 요청 실패';
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
-      setTranslation(data.translation);
-      setShowOriginal(false);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '번역 중 오류가 발생했습니다';
-      console.error('번역 오류:', err);
-      setError(errorMessage);
-    } finally {
-      setIsTranslating(false);
-    }
-  };
-
-  const generateInfographic = async (forceRegenerate = false) => {
-    if (!paper || isGeneratingInfographic) return;
-    if (!forceRegenerate && diagramCode) return;
-
-    setIsGeneratingInfographic(true);
-    setError(null);
-
-    try {
-      const response = await fetch('/api/infographic', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: paper.title,
-          summary: paper.abstract.slice(0, 500),
-          keyPoints: [paper.categories.join(', '), `저자: ${paper.authors.slice(0, 3).join(', ')}`],
-          source: paper.source,
-          methodology: '',
-          arxivId: paper.arxivId || paper.sourceId,
-          forceRegenerate,
-        }),
-      });
-
-      if (!response.ok) {
-        // Read error response for details
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error?.message || '인포그래픽 생성 실패';
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
-      if (data.diagramCode) {
-        setDiagramCode(data.diagramCode);
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '인포그래픽 생성 중 오류가 발생했습니다';
-      console.error('인포그래픽 생성 오류:', err);
-      setError(errorMessage);
-    } finally {
-      setIsGeneratingInfographic(false);
-    }
-  };
-
-  const findSimilarPapers = async () => {
-    if (!paper || isFindingSimilar) return;
-
-    setIsFindingSimilar(true);
-    try {
-      const response = await fetch('/api/similar-search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: paper.title,
-          abstract: paper.abstract,
-          categories: paper.categories,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.searchQuery) {
-          router.push(`/?q=${encodeURIComponent(data.searchQuery)}`);
-        }
-      }
-    } catch (err) {
-      console.error('유사 논문 검색 오류:', err);
-    } finally {
-      setIsFindingSimilar(false);
-    }
-  };
-
-  // Render Mermaid diagram when code changes
-  useEffect(() => {
-    const renderDiagram = async () => {
-      if (!diagramCode || !infographicContainerRef.current) return;
-
-      try {
-        const id = `mermaid-${Date.now()}`;
-        const { svg } = await mermaid.render(id, diagramCode);
-
-        if (infographicContainerRef.current) {
-          infographicContainerRef.current.innerHTML = svg;
-          // Extract SVG for download
-          const svgElement = infographicContainerRef.current.querySelector('svg');
-          if (svgElement) {
-            // Add inline styles to SVG for proper display in new window
-            const styleElement = document.createElement('style');
-            styleElement.textContent = `
-              text {
-                font-family: Arial, sans-serif !important;
-                font-size: 16px !important;
-                line-height: 1.4 !important;
-                overflow: visible !important;
-                text-overflow: clip !important;
-                white-space: normal !important;
-              }
-              * {
-                overflow: visible !important;
-              }
-              .node rect, .node circle, .node path, .node polygon, .foreignObject {
-                overflow: visible !important;
-              }
-              g.node text, .nodeLabel {
-                overflow: visible !important;
-                text-overflow: clip !important;
-                white-space: normal !important;
-              }
-              tspan {
-                overflow: visible !important;
-                white-space: normal !important;
-              }
-            `;
-            svgElement.prepend(styleElement);
-
-            // Ensure viewBox is set
-            if (!svgElement.getAttribute('viewBox')) {
-              const bbox = svgElement.getBBox();
-              svgElement.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
-            }
-
-            const svgData = new XMLSerializer().serializeToString(svgElement);
-            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-            const url = URL.createObjectURL(svgBlob);
-            setSvgDataUrl(url);
-          }
-        }
-      } catch (err) {
-        console.error('Mermaid render error:', err);
-        // Show raw code as fallback
-        if (infographicContainerRef.current) {
-          infographicContainerRef.current.innerHTML = `
-            <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p class="text-sm text-red-700 font-medium mb-2">다이어그램 렌더링 실패 (Mermaid 문법 오류)</p>
-              <pre class="text-xs bg-gray-100 p-3 rounded overflow-auto max-h-64">${diagramCode}</pre>
-            </div>
-          `;
-        }
-      }
-    };
-
-    renderDiagram();
-  }, [diagramCode]);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
 
   if (isLoading) {
     return (
@@ -333,12 +74,7 @@ export default function PaperDetailPage({ params }: PageProps) {
   if (error || !paper) {
     return (
       <div className="max-w-4xl mx-auto text-center py-12">
-        <svg
-          className="mx-auto h-12 w-12 text-gray-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -354,6 +90,8 @@ export default function PaperDetailPage({ params }: PageProps) {
     );
   }
 
+  const paperArxivId = paper.arxivId || paper.sourceId;
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* 뒤로가기 */}
@@ -367,339 +105,29 @@ export default function PaperDetailPage({ params }: PageProps) {
         검색으로 돌아가기
       </Link>
 
-      {/* 논문 정보 카드 */}
-      <div className="bg-white rounded-lg shadow-sm border p-6 space-y-4">
-        {/* 제목 및 북마크 */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <SourceBadge source={paper.source} size="md" />
-              <span className="text-sm font-mono text-gray-400">
-                {paper.source === 'arxiv' ? `arXiv:${paper.sourceId}` : `ID:${paper.sourceId}`}
-              </span>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 leading-tight">{paper.title}</h1>
-          </div>
-          <BookmarkButton paper={paper} size="lg" />
-        </div>
+      <PaperInfo paper={paper} />
 
-        {/* 저자 */}
-        <div>
-          <h2 className="text-sm font-semibold text-gray-500 mb-1">저자</h2>
-          <p className="text-gray-700">{paper.authors.join(', ')}</p>
-        </div>
-
-        {/* 날짜 */}
-        <div className="flex gap-6 text-sm">
-          <div>
-            <span className="font-semibold text-gray-500">게시일: </span>
-            <span className="text-gray-700">{formatDate(paper.publishedAt)}</span>
-          </div>
-          <div>
-            <span className="font-semibold text-gray-500">수정일: </span>
-            <span className="text-gray-700">{formatDate(paper.updatedAt)}</span>
-          </div>
-        </div>
-
-        {/* 카테고리 */}
-        <div>
-          <h2 className="text-sm font-semibold text-gray-500 mb-2">카테고리</h2>
-          <div className="flex flex-wrap gap-2">
-            {paper.categories.map((category) => (
-              <span
-                key={category}
-                className="px-3 py-1 text-sm font-medium bg-blue-50 text-blue-700 rounded-full"
-                title={category}
-              >
-                {getCategoryName(category)}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* 링크들 */}
-        <div className="flex gap-4 pt-2">
-          <a
-            href={paper.pdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            PDF 다운로드
-          </a>
-          <a
-            href={paper.arxivUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-              />
-            </svg>
-            arXiv에서 보기
-          </a>
-          <button
-            onClick={findSimilarPapers}
-            disabled={isFindingSimilar}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isFindingSimilar ? (
-              <>
-                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                검색 중...
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16l2.879-2.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                유사 논문 찾기
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* 초록 */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-gray-900">
-            초록 {showOriginal ? '(Abstract)' : '(한국어 번역)'}
-          </h2>
-          <div className="flex items-center gap-2">
-            {translation && (
-              <div className="flex rounded-lg overflow-hidden border border-gray-200">
-                <button
-                  onClick={() => setShowOriginal(true)}
-                  className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                    showOriginal
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  원문
-                </button>
-                <button
-                  onClick={() => setShowOriginal(false)}
-                  className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                    !showOriginal
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  한국어
-                </button>
-              </div>
-            )}
-            {!translation && (
-              <button
-                onClick={translateAbstract}
-                disabled={isTranslating}
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {isTranslating ? (
-                  <>
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="none"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                    번역 중...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
-                      />
-                    </svg>
-                    한국어로 번역
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {isTranslating ? (
-          <div className="py-8 text-center">
-            <svg
-              className="animate-spin w-8 h-8 text-blue-600 mx-auto mb-3"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-            <p className="text-gray-600">Gemini AI가 번역 중입니다...</p>
-          </div>
-        ) : showOriginal ? (
-          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-            {paper.abstract}
-          </p>
-        ) : (
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
-            <MarkdownView content={translation || ''} />
-          </div>
-        )}
-      </div>
-
-      {/* AI 분석 */}
-      <AIAnalysis
-        title={paper.title}
+      <AbstractSection
         abstract={paper.abstract}
-        arxivId={paper.arxivId || paper.sourceId}
+        arxivId={paperArxivId}
         source={paper.source}
       />
 
-      {/* 인포그래픽 섹션 */}
-      <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-lg p-6 border border-amber-200">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <svg
-              className="w-6 h-6 text-amber-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
-              />
-            </svg>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">인포그래픽</h3>
-              <p className="text-sm text-gray-600">GLM-5 + Mermaid 다이어그램</p>
-            </div>
-          </div>
-          {diagramCode && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => generateInfographic(true)}
-                disabled={isGeneratingInfographic}
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-                title="인포그래픽 재생성"
-              >
-                <svg className={`w-4 h-4 ${isGeneratingInfographic ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                재생성
-              </button>
-              {svgDataUrl && (
-                <>
-                  <button
-                    onClick={() => window.open(svgDataUrl, '_blank')}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                    title="새 창에서 열기"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                    새 창에서 보기
-                  </button>
-                  <a
-                    href={svgDataUrl}
-                    download={`infographic-${Date.now()}.svg`}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-100 rounded-lg transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    다운로드 (SVG)
-                  </a>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+      <AIAnalysis
+        title={paper.title}
+        abstract={paper.abstract}
+        arxivId={paperArxivId}
+        source={paper.source}
+      />
 
-        {diagramCode ? (
-          <div className="relative rounded-lg border border-amber-200 bg-white p-4" style={{ overflow: 'auto' }}>
-            {isGeneratingInfographic && (
-              <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center z-10">
-                <svg className="animate-spin w-10 h-10 text-amber-600 mb-4" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                <p className="text-gray-700 font-medium">다이어그램 재생성 중...</p>
-              </div>
-            )}
-            <div ref={infographicContainerRef} className="mermaid-container flex items-center justify-center min-h-[400px] p-4" style={{ minWidth: '600px' }} />
-          </div>
-        ) : (
-          <div className="text-center py-10">
-            {isGeneratingInfographic ? (
-              <>
-                <svg className="animate-spin w-10 h-10 text-amber-600 mx-auto mb-4" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                <p className="text-gray-700 font-medium mb-1">다이어그램 생성 중...</p>
-                <p className="text-sm text-gray-500">GLM-5로 Mermaid mindmap 다이어그램을 생성 중입니다</p>
-              </>
-            ) : (
-              <>
-                <svg className="w-12 h-12 text-amber-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-                </svg>
-                <p className="text-gray-600 mb-4">논문 내용을 시각화한 다이어그램을 생성할 수 있습니다</p>
-                <button
-                  onClick={() => generateInfographic()}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                  다이어그램 생성
-                </button>
-              </>
-            )}
-          </div>
-        )}
-      </div>
+      <InfographicSection
+        title={paper.title}
+        abstract={paper.abstract}
+        categories={paper.categories}
+        authors={paper.authors}
+        arxivId={paperArxivId}
+        source={paper.source}
+      />
     </div>
   );
 }

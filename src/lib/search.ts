@@ -1,7 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-const apiKey = process.env.GEMINI_API_KEY || '';
-const genAI = new GoogleGenerativeAI(apiKey);
+import { glmClient, tryGLMModels } from '@/lib/glm';
 
 // 날짜를 YYYYMMDD 형식으로 변환
 function formatDate(date: Date): string {
@@ -41,8 +38,8 @@ export async function enhanceSearchQuery(query: string): Promise<EnhancedSearchQ
     };
   }
 
-  if (!apiKey) {
-    console.warn('GEMINI_API_KEY가 없어 기본 검색을 수행합니다.');
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn('OPENAI_API_KEY가 없어 기본 검색을 수행합니다.');
     return {
       originalQuery: query,
       englishKeywords: [query],
@@ -51,8 +48,6 @@ export async function enhanceSearchQuery(query: string): Promise<EnhancedSearchQ
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
-
     // 오늘 날짜 정보 제공
     const today = new Date();
     const todayStr = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
@@ -94,9 +89,15 @@ export async function enhanceSearchQuery(query: string): Promise<EnhancedSearchQ
 - "2026년 1월 25일 AI 이미지 생성" → {"englishKeywords": ["AI", "image generation", "generative model", "diffusion"], "searchQuery": "image generation OR generative AI OR diffusion model", "suggestedCategory": "cs.CV", "dateFilter": {"startDate": "20260125", "endDate": "20260125", "description": "2026년 1월 25일"}}
 - "최근 트랜스포머 논문" → {"englishKeywords": ["transformer", "attention"], "searchQuery": "transformer OR attention mechanism", "suggestedCategory": "cs.LG", "dateFilter": {"startDate": "${formatDate(new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000))}", "endDate": "${formatDate(today)}", "description": "최근 7일"}}`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const result = await tryGLMModels(async (model) => {
+      return await glmClient.chat.completions.create({
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.3,
+      });
+    });
+
+    const text = result.choices[0]?.message?.content || '';
 
     // JSON 파싱
     const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-const apiKey = process.env.GEMINI_API_KEY || '';
-const genAI = new GoogleGenerativeAI(apiKey);
+import { glmClient, tryGLMModels } from '@/lib/glm';
+import { withErrorHandler } from '@/lib/errors';
 
 interface PaperInput {
   title: string;
@@ -10,34 +8,31 @@ interface PaperInput {
   categories: string[];
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { papers } = body as { papers: PaperInput[] };
+export const POST = withErrorHandler(async (request: NextRequest) => {
+  const body = await request.json();
+  const { papers } = body as { papers: PaperInput[] };
 
-    if (!papers || papers.length < 2) {
-      return NextResponse.json(
-        { error: '최소 2개의 논문이 필요합니다' },
-        { status: 400 }
-      );
-    }
+  if (!papers || papers.length < 2) {
+    return NextResponse.json(
+      { error: '최소 2개의 논문이 필요합니다' },
+      { status: 400 }
+    );
+  }
 
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'API 키가 설정되지 않았습니다' },
-        { status: 500 }
-      );
-    }
+  if (!process.env.OPENAI_API_KEY) {
+    return NextResponse.json(
+      { error: 'API 키가 설정되지 않았습니다' },
+      { status: 500 }
+    );
+  }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
-
-    const papersText = papers.map((p, i) => `
+  const papersText = papers.map((p, i) => `
 논문 ${i + 1}: ${p.title}
 카테고리: ${p.categories.join(', ')}
 초록: ${p.abstract}
 `).join('\n---\n');
 
-    const prompt = `당신은 학술 논문 비교 분석 전문가입니다. 다음 ${papers.length}개의 논문을 비교 분석해주세요.
+  const prompt = `당신은 학술 논문 비교 분석 전문가입니다. 다음 ${papers.length}개의 논문을 비교 분석해주세요.
 
 ${papersText}
 
@@ -59,21 +54,17 @@ ${papersText}
 
 모든 응답은 한국어로 작성해주세요.`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+  const result = await tryGLMModels(async (model) => {
+    return await glmClient.chat.completions.create({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+    });
+  });
 
-    // JSON 파싱
-    const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const analysis = JSON.parse(cleanedText);
+  const text = result.choices[0]?.message?.content || '';
+  const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  const analysis = JSON.parse(cleanedText);
 
-    return NextResponse.json(analysis);
-  } catch (error) {
-    console.error('논문 비교 분석 오류:', error);
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
-    return NextResponse.json(
-      { error: `분석 중 오류가 발생했습니다: ${errorMessage}` },
-      { status: 500 }
-    );
-  }
-}
+  return NextResponse.json(analysis);
+}, 'Compare');

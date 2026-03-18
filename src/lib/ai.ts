@@ -1,41 +1,5 @@
-import OpenAI from 'openai';
 import { AIAnalysis } from '@/types/paper';
-
-// @MX:NOTE: Function to get OpenAI client - dynamically reads API key for testability
-function getOpenAIClient() {
-  const apiKey = process.env.OPENAI_API_KEY || '';
-  const baseURL = process.env.OPENAI_BASE_URL;
-
-  return new OpenAI({
-    apiKey,
-    baseURL,
-  });
-}
-
-// Available models in fallback order
-const MODELS = ['glm-5', 'glm-4.7', 'glm-4.7-Flash'] as const;
-
-// Helper function to try models in order
-async function tryModels<T>(
-  models: readonly string[],
-  fn: (model: string) => Promise<T>
-): Promise<T> {
-  const errors: Array<{ model: string; error: unknown }> = [];
-
-  for (const model of models) {
-    try {
-      console.log(`[AI] Trying model: ${model}`);
-      return await fn(model);
-    } catch (error) {
-      console.error(`[AI] Model ${model} failed:`, error);
-      errors.push({ model, error });
-    }
-  }
-
-  throw new Error(
-    `All models failed:\n${errors.map(e => `- ${e.model}: ${e.error}`).join('\n')}`
-  );
-}
+import { glmClient, tryGLMModels } from '@/lib/glm';
 
 export async function analyzePaper(title: string, abstract: string): Promise<AIAnalysis> {
   const apiKey = process.env.OPENAI_API_KEY || '';
@@ -43,8 +7,6 @@ export async function analyzePaper(title: string, abstract: string): Promise<AIA
     console.error('OPENAI_API_KEY가 설정되지 않았습니다.');
     throw new Error('API 키가 설정되지 않았습니다.');
   }
-
-  const openai = getOpenAIClient();
 
   const prompt = `당신은 학술 논문 분석 전문가입니다. 다음 논문의 제목과 초록을 분석하여 JSON 형식으로 응답해주세요.
 
@@ -62,8 +24,8 @@ export async function analyzePaper(title: string, abstract: string): Promise<AIA
 }`;
 
   try {
-    const result = await tryModels(MODELS, async (model) => {
-      return await openai.chat.completions.create({
+    const result = await tryGLMModels(async (model) => {
+      return await glmClient.chat.completions.create({
         model,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
@@ -89,8 +51,6 @@ export async function generateQuickSummary(abstract: string): Promise<string> {
     throw new Error('API 키가 설정되지 않았습니다.');
   }
 
-  const openai = getOpenAIClient();
-
   const prompt = `다음 논문 초록을 한국어로 2-3문장으로 간결하게 요약해주세요:
 
 ${abstract}
@@ -98,8 +58,8 @@ ${abstract}
 요약:`;
 
   try {
-    const result = await tryModels(MODELS, async (model) => {
-      return await openai.chat.completions.create({
+    const result = await tryGLMModels(async (model) => {
+      return await glmClient.chat.completions.create({
         model,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,

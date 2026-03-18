@@ -87,7 +87,7 @@ export default function AIAnalysis({ title, abstract, arxivId, source }: AIAnaly
             </svg>
             <div>
               <h3 className="text-lg font-semibold text-gray-900">AI 논문 분석</h3>
-              <p className="text-sm text-gray-600">Gemini AI가 논문의 핵심 내용을 분석합니다</p>
+              <p className="text-sm text-gray-600">GLM AI가 논문의 핵심 내용을 분석합니다</p>
             </div>
           </div>
           <button

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Bookmark, PaperSource } from '@/types/paper';
+import { formatDate } from '@/lib/format';
 import { getBookmarks, removeBookmark } from '@/lib/bookmarks';
 
 export default function BookmarksPage() {
@@ -29,15 +30,7 @@ export default function BookmarksPage() {
     }
   }, []);
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
+
 
   const getPaperUrl = (bookmark: Bookmark) => {
     if (bookmark.source === 'openreview') {

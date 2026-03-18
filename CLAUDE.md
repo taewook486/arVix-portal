@@ -504,6 +504,57 @@ Large PDFs (>10 pages) return a lightweight reference when @-mentioned. Always s
 
 ---
 
+## 18. Agent Work Document Management (.sisyphus/)
+
+When Sisyphus (OpenCode default agent) performs multi-step work **outside of MoAI workflows**, stage documents MUST be managed in the `.sisyphus/` directory. MoAI workflows use `.moai/specs/` instead — do NOT duplicate into `.sisyphus/`.
+
+### When to Use
+
+- Sisyphus executes a task with 3+ steps that produces intermediate artifacts
+- Work is NOT managed by MoAI (no /moai plan, no SPEC document)
+- Deliverables from one stage are referenced as input for the next stage
+- Complex investigation or refactoring that requires context preservation across agent sessions
+
+### When NOT to Use
+
+- MoAI workflow is active (use `.moai/specs/SPEC-XXX/` instead)
+- Single-step trivial tasks (typo fix, config change)
+- Direct user interaction with no delegation
+- Tasks fully captured by todo list alone
+
+### Directory Structure
+
+```
+.sisyphus/
+├── plans/        # Work plans (auto-reviewed by Momus when saved here)
+├── stages/       # Stage-by-stage deliverables (numbered: 01-analysis.md, 02-plan.md, ...)
+└── reviews/      # Post-implementation review reports
+```
+
+### Conventions
+
+- **Naming**: `{NN}-{phase}.md` (e.g., `01-analysis.md`, `02-implementation-plan.md`)
+- **Referencing**: Next stage references previous via `@.sisyphus/stages/01-analysis.md`
+- **Metadata**: Each document starts with YAML frontmatter:
+  ```yaml
+  ---
+  task: "Brief task description"
+  stage: 1
+  created: 2026-03-18
+  status: completed | in_progress | pending
+  ---
+  ```
+- **Cleanup**: Agent removes `.sisyphus/stages/` contents after final delivery, unless user requests retention
+
+### Agent Behavior
+
+1. Before starting multi-step work, create `.sisyphus/stages/01-*.md` with analysis/plan
+2. At each stage boundary, write the deliverable to the next numbered file
+3. Reference previous stage documents in prompts when delegating to subagents
+4. On completion, write a summary to `.sisyphus/reviews/` if the task modified 5+ files
+
+---
+
 Version: 13.2.0 (Usage Data Driven Improvements)
 Last Updated: 2026-02-22
 Language: English

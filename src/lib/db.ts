@@ -1,11 +1,44 @@
 import { Pool } from 'pg';
 import { Bookmark, Paper, PaperSource } from '@/types/paper';
+import { logError, toAppError } from '@/lib/errors';
+
+/**
+ * Check if an error is a database connection error that should be rethrown
+ * (not silently swallowed) so the API route can return an actionable message.
+ */
+function isConnectionError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes('tenant or user not found') ||
+    msg.includes('econnrefused') ||
+    msg.includes('connection timeout') ||
+    msg.includes('timeout expired') ||
+    msg.includes('password authentication failed') ||
+    (msg.includes('database') && msg.includes('does not exist')) ||
+    msg.includes('no pg_hba.conf entry') ||
+    msg.includes('ssl/tls required') ||
+    msg.includes('connection terminated unexpectedly') ||
+    msg.includes('getaddrinfo enotfound')
+  );
+}
+
+/**
+ * Rethrow connection errors as AppError so API routes return clear messages.
+ * Other DB errors are logged and swallowed (existing behavior).
+ */
+function handleDbError(context: string, error: unknown): void {
+  if (isConnectionError(error)) {
+    throw toAppError(error as Error);
+  }
+  logError(context, error);
+}
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL?.includes('localhost') || process.env.DATABASE_URL?.includes('127.0.0.1')
     ? false
-    : { rejectUnauthorized: false },
+    : { rejectUnauthorized: false }, // Supabase pooler (PgBouncer) uses self-signed cert chain
 });
 
 export interface PaperCache {
@@ -109,7 +142,8 @@ export async function addBookmark(paper: Paper, aiSummary?: string): Promise<Boo
       ]
     );
     return result.rows[0] || null;
-  } catch {
+  } catch (error) {
+    handleDbError('db.addBookmark', error);
     return null;
   } finally {
     client.release();
@@ -134,7 +168,8 @@ export async function removeBookmark(sourceOrArxivId: PaperSource | string, sour
 
     const result = await client.query(query, params);
     return (result.rowCount ?? 0) > 0;
-  } catch {
+  } catch (error) {
+    handleDbError('db.removeBookmark', error);
     return false;
   } finally {
     client.release();
@@ -142,23 +177,20 @@ export async function removeBookmark(sourceOrArxivId: PaperSource | string, sour
 }
 
 export async function getBookmarks(): Promise<Bookmark[]> {
-  const client = await pool.connect();
   try {
-    const result = await client.query(
+    const result = await pool.query(
       'SELECT * FROM bookmarks ORDER BY created_at DESC'
     );
     return result.rows;
-  } catch {
+  } catch (error) {
+    handleDbError('db.getBookmarks', error);
     return [];
-  } finally {
-    client.release();
   }
 }
 
 export async function isBookmarked(source: PaperSource, sourceId: string): Promise<boolean>;
 export async function isBookmarked(arxivId: string): Promise<boolean>;
 export async function isBookmarked(sourceOrArxivId: PaperSource | string, sourceId?: string): Promise<boolean> {
-  const client = await pool.connect();
   try {
     let query: string;
     let params: string[];
@@ -171,27 +203,24 @@ export async function isBookmarked(sourceOrArxivId: PaperSource | string, source
       params = [sourceOrArxivId as string, 'arxiv'];
     }
 
-    const result = await client.query(query, params);
+    const result = await pool.query(query, params);
     return result.rows.length > 0;
-  } catch {
+  } catch (error) {
+    handleDbError('db.isBookmarked', error);
     return false;
-  } finally {
-    client.release();
   }
 }
 
 export async function getBookmarkByArxivId(arxivId: string): Promise<Bookmark | null> {
-  const client = await pool.connect();
   try {
-    const result = await client.query(
+    const result = await pool.query(
       'SELECT * FROM bookmarks WHERE arxiv_id = $1 OR (source = $2 AND source_id = $1)',
       [arxivId, 'arxiv']
     );
     return result.rows[0] || null;
-  } catch {
+  } catch (error) {
+    handleDbError('db.getBookmarkByArxivId', error);
     return null;
-  } finally {
-    client.release();
   }
 }
 
@@ -213,7 +242,8 @@ export async function updateAISummary(sourceOrArxivId: PaperSource | string, sou
 
     const result = await client.query(query, params);
     return (result.rowCount ?? 0) > 0;
-  } catch {
+  } catch (error) {
+    handleDbError('db.updateAISummary', error);
     return false;
   } finally {
     client.release();
@@ -289,7 +319,6 @@ export async function initPaperCacheTable() {
 export async function getPaperCache(source: PaperSource, sourceId: string): Promise<PaperCache | null>;
 export async function getPaperCache(arxivId: string): Promise<PaperCache | null>;
 export async function getPaperCache(sourceOrArxivId: PaperSource | string, sourceId?: string): Promise<PaperCache | null> {
-  const client = await pool.connect();
   try {
     let query: string;
     let params: string[];
@@ -302,12 +331,11 @@ export async function getPaperCache(sourceOrArxivId: PaperSource | string, sourc
       params = [sourceOrArxivId as string];
     }
 
-    const result = await client.query(query, params);
+    const result = await pool.query(query, params);
     return result.rows[0] || null;
-  } catch {
+  } catch (error) {
+    handleDbError('db.getPaperCache', error);
     return null;
-  } finally {
-    client.release();
   }
 }
 
@@ -339,7 +367,7 @@ export async function saveTranslation(sourceOrArxivId: PaperSource | string, sou
     }
     return true;
   } catch (error) {
-    console.error(`[DB] Failed to save translation:`, error);
+    handleDbError('db.saveTranslation', error);
     return false;
   } finally {
     client.release();
@@ -385,7 +413,7 @@ export async function saveAnalysis(
     }
     return true;
   } catch (error) {
-    console.error(`[DB] Failed to save analysis:`, error);
+    handleDbError('db.saveAnalysis', error);
     return false;
   } finally {
     client.release();
@@ -420,7 +448,7 @@ export async function saveInfographicUrl(sourceOrArxivId: PaperSource | string, 
     }
     return true;
   } catch (error) {
-    console.error(`[DB] Failed to save infographic URL:`, error);
+    handleDbError('db.saveInfographicUrl', error);
     return false;
   } finally {
     client.release();

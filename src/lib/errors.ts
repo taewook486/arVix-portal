@@ -79,6 +79,12 @@ export class DatabaseError extends AppError {
   }
 }
 
+export class DatabaseConnectionError extends AppError {
+  constructor(message: string, details?: unknown) {
+    super(message, ErrorCode.DATABASE_ERROR, HttpStatusCode.SERVICE_UNAVAILABLE, details);
+  }
+}
+
 export class ExternalAPIError extends AppError {
   constructor(service: string, message: string, details?: unknown) {
     super(
@@ -128,6 +134,58 @@ export function createErrorResponse(error: AppError): ErrorResponse {
 }
 
 /**
+ * Detect database connection errors and return a user-friendly message.
+ * Returns null if the error is not a DB connection error.
+ */
+function detectDbConnectionError(error: Error): DatabaseConnectionError | null {
+  const message = error.message.toLowerCase();
+
+  if (message.includes('tenant or user not found')) {
+    return new DatabaseConnectionError(
+      '데이터베이스 연결 실패: Supabase 프로젝트가 일시정지(paused) 상태이거나 인증 정보가 올바르지 않습니다. Supabase 대시보드에서 프로젝트 상태를 확인하세요.',
+      { originalError: error.message }
+    );
+  }
+
+  if (message.includes('econnrefused')) {
+    return new DatabaseConnectionError(
+      '데이터베이스 연결 실패: 데이터베이스 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.',
+      { originalError: error.message }
+    );
+  }
+
+  if (message.includes('connection timeout') || message.includes('timeout expired')) {
+    return new DatabaseConnectionError(
+      '데이터베이스 연결 실패: 연결 시간이 초과되었습니다. 네트워크 상태를 확인하세요.',
+      { originalError: error.message }
+    );
+  }
+
+  if (message.includes('password authentication failed')) {
+    return new DatabaseConnectionError(
+      '데이터베이스 연결 실패: 인증에 실패했습니다. DATABASE_URL의 비밀번호를 확인하세요.',
+      { originalError: error.message }
+    );
+  }
+
+  if (message.includes('database') && message.includes('does not exist')) {
+    return new DatabaseConnectionError(
+      '데이터베이스 연결 실패: 지정된 데이터베이스가 존재하지 않습니다. DATABASE_URL을 확인하세요.',
+      { originalError: error.message }
+    );
+  }
+
+  if (message.includes('no pg_hba.conf entry') || message.includes('ssl/tls required')) {
+    return new DatabaseConnectionError(
+      '데이터베이스 연결 실패: 접근이 거부되었습니다. SSL 설정 또는 접근 권한을 확인하세요.',
+      { originalError: error.message }
+    );
+  }
+
+  return null;
+}
+
+/**
  * Convert unknown error to AppError
  */
 export function toAppError(error: unknown): AppError {
@@ -136,6 +194,12 @@ export function toAppError(error: unknown): AppError {
   }
 
   if (error instanceof Error) {
+    // Check for database connection errors first
+    const dbError = detectDbConnectionError(error);
+    if (dbError) {
+      return dbError;
+    }
+
     return new InternalError(error.message, {
       originalError: error.name,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,

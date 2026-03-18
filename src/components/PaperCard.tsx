@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Paper, getCategoryName } from '@/types/paper';
+import { formatDate } from '@/lib/format';
 import BookmarkButton from './BookmarkButton';
 import BucketButton from './BucketButton';
 import SourceBadge from './SourceBadge';
@@ -12,7 +13,7 @@ interface PaperCardProps {
   paper: Paper;
 }
 
-export default function PaperCard({ paper }: PaperCardProps) {
+function PaperCard({ paper }: PaperCardProps) {
   const router = useRouter();
   const [isFindingSimilar, setIsFindingSimilar] = useState(false);
 
@@ -43,15 +44,6 @@ export default function PaperCard({ paper }: PaperCardProps) {
       setIsFindingSimilar(false);
     }
   };
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
   const truncateAbstract = (text: string, maxLength = 120) => {
     if (text.length <= maxLength) return text;
     return text.slice(0, maxLength).trim() + '...';
@@ -148,3 +140,5 @@ export default function PaperCard({ paper }: PaperCardProps) {
     </div>
   );
 }
+
+export default memo(PaperCard);

@@ -1,51 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { glmClient, tryGLMModels } from '@/lib/glm';
+import { withErrorHandler } from '@/lib/errors';
 
-const apiKey = process.env.OPENAI_API_KEY || '';
-const baseURL = process.env.OPENAI_BASE_URL;
+export const POST = withErrorHandler(async (request: NextRequest) => {
+  const { title, abstract, categories } = await request.json();
 
-const openai = new OpenAI({
-  apiKey,
-  baseURL,
-});
-
-// Available models in fallback order
-const MODELS = ['glm-5', 'glm-4.7', 'glm-4.7-Flash'] as const;
-
-// Helper function to try models in order
-async function tryModels<T>(
-  models: readonly string[],
-  fn: (model: string) => Promise<T>
-): Promise<T> {
-  const errors: Array<{ model: string; error: unknown }> = [];
-
-  for (const model of models) {
-    try {
-      console.log(`[AI] Trying model: ${model}`);
-      return await fn(model);
-    } catch (error) {
-      console.error(`[AI] Model ${model} failed:`, error);
-      errors.push({ model, error });
-    }
+  if (!title || !abstract) {
+    return NextResponse.json(
+      { error: '논문 제목과 초록이 필요합니다' },
+      { status: 400 }
+    );
   }
 
-  throw new Error(
-    `All models failed:\n${errors.map(e => `- ${e.model}: ${e.error}`).join('\n')}`
-  );
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const { title, abstract, categories } = await request.json();
-
-    if (!title || !abstract) {
-      return NextResponse.json(
-        { error: '논문 제목과 초록이 필요합니다' },
-        { status: 400 }
-      );
-    }
-
-    const prompt = `You are an academic search query optimizer. Based on the following research paper information, generate an optimal search query to find similar papers on arXiv.
+  const prompt = `You are an academic search query optimizer. Based on the following research paper information, generate an optimal search query to find similar papers on arXiv.
 
 Title: ${title}
 
@@ -63,40 +30,33 @@ Instructions:
 Respond with ONLY the search query, nothing else. Example format:
 transformer attention mechanism natural language processing`;
 
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'OPENAI_API_KEY가 설정되지 않았습니다' },
-        { status: 500 }
-      );
-    }
-
-    const result = await tryModels(MODELS, async (model) => {
-      return await openai.chat.completions.create({
-        model,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-      });
-    });
-
-    const searchQuery = result.choices[0]?.message?.content?.trim() || '';
-
-    if (!searchQuery) {
-      return NextResponse.json(
-        { error: '검색어 생성에 실패했습니다' },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      searchQuery,
-      originalTitle: title,
-    });
-  } catch (error) {
-    console.error('유사 논문 검색어 생성 오류:', error);
+  if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json(
-      { error: '검색어 생성 중 오류가 발생했습니다' },
+      { error: 'OPENAI_API_KEY가 설정되지 않았습니다' },
       { status: 500 }
     );
   }
-}
+
+  const result = await tryGLMModels(async (model) => {
+    return await glmClient.chat.completions.create({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+    });
+  });
+
+  const searchQuery = result.choices[0]?.message?.content?.trim() || '';
+
+  if (!searchQuery) {
+    return NextResponse.json(
+      { error: '검색어 생성에 실패했습니다' },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({
+    success: true,
+    searchQuery,
+    originalTitle: title,
+  });
+}, 'Similar Search');
